@@ -13,26 +13,11 @@
 
 const fs = require("fs");
 const path = require("path");
-const { chromium } = require(process.env.PLAYWRIGHT_PATH || "playwright");
+const { launchChromium } = require("./browser");
 
 const PORT = Number(process.env.DOGFOOD_PORT || 8080);
 const BASE = `http://127.0.0.1:${PORT}`;
 const OUT = path.join(__dirname, "..", "docs", "screenshots");
-
-/*
- * Prefer the installed Playwright Chromium, and fall back to the system Chrome.
- * The headless shell download is not present on every machine, and a screenshot
- * run that dies with "Executable doesn't exist" produces nothing. System Chrome
- * renders the same DOM, so the overflow and console findings are equally valid;
- * the choice is logged rather than silent.
- */
-function launchOptions() {
-  if (process.env.DOGFOOD_BROWSER) return { channel: process.env.DOGFOOD_BROWSER };
-  if (process.env.DOGFOOD_CHROME_PATH) {
-    return { executablePath: process.env.DOGFOOD_CHROME_PATH };
-  }
-  return {};
-}
 
 const SESSIONS = {
   organizer: process.env.DOGFOOD_SESSION_ORGANIZER || "ses_19e491d5944c2d83",
@@ -74,17 +59,8 @@ async function main() {
     full: false,
   });
 
-  const opts = launchOptions();
-  let browser;
-  try {
-    browser = await chromium.launch(opts);
-    console.log(`browser: chromium ${JSON.stringify(opts)}`);
-  } catch (e) {
-    const chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-    if (!fs.existsSync(chrome)) throw e;
-    console.log(`bundled chromium unavailable (${e.message.split("\n")[0]}); falling back to system Chrome`);
-    browser = await chromium.launch({ executablePath: chrome });
-  }
+  const { browser, how } = await launchChromium();
+  console.log(`browser: ${how}`);
   const findings = [];
   const consoleErrors = [];
   let shots = 0;

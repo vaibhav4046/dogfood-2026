@@ -263,15 +263,6 @@ function registerJudge(app, db) {
 
     res.json({ ok: true, reviewId, status, savedAt: now });
   });
-
-  /**
-   * Aggregated results for staff. Organizers see every judge; a judge sees
-   * only their own rows, which is the same rule as /api/judge/scores.
-   */
-  app.get("/api/organizer/results", requireJudgingStaff, (req, res) => {
-    const { computeResults } = require("../services/judging");
-    res.json(computeResults(db));
-  });
 }
 
 // --- helpers ---------------------------------------------------------------

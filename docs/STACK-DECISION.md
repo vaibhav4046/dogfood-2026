@@ -41,9 +41,15 @@ checks fail** for a reason that has nothing to do with the product. With B
 there is no build step, so a defect is confined to the route that has it: a
 broken gallery cannot take down the CSV export.
 
-`better-sqlite3` was verified to load its native binding on this machine before
-it was chosen, so the single most common way this stack fails (a prebuilt
-binary that does not match the platform) is already ruled out.
+`better-sqlite3` was checked on this machine before it was chosen, and the
+native binding loads. What that check actually proved is more interesting than
+"it works": the install **compiled from source** with MSVC rather than using a
+prebuild (`build/config.gypi` and `build/binding.sln` are node-gyp artifacts and
+no `prebuilds/` cache exists), so the `node-gyp` fallback — the thing that
+actually breaks a slim Docker image — is verified working, not assumed. The
+prebuild path, conversely, has never been exercised for this project, and
+nothing has run under Node 22, which is what the image uses. Both facts are
+carried into `docs/OPERATIONS.md` rather than resolved into a reassurance.
 
 The Judge Desk is the one surface that wanted a framework. It is a form with
 autosave and keyboard shortcuts, which is ~120 lines of vanilla JS against a

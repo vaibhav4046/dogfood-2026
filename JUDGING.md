@@ -37,9 +37,10 @@ Five judges rate the same forty projects. One gives 4–5 across the board, one
 gives 2–3, one gives everything exactly 3, one alternates 1 and 5.
 
 Averaging those numbers measures the judges as much as the projects. On the
-fixture data, judge means span **3.000 to 4.222** on a 1–5 scale — a spread of
-over a point, which is larger than a lot of the differences between the projects
-being judged.
+fixture data, judge means span **2.000 to 4.222** on a 1–5 scale — a **2.222**
+point range, which is larger than a lot of the differences between the projects
+being judged. The floor is Tomas Varga at 2.000; the ceiling is Wei Lindqvist at
+4.222.
 
 The controlled case, in `scripts/measure-distortion.js`: **one submission**,
 judged once by two lenient judges and once by two harsh judges.
@@ -156,8 +157,14 @@ Asserted in `tests/unit/normalize.test.js`:
 - **reversed input → same fingerprint and same ranks**
 
 `fingerprint` is a SHA-256 over the ranked output, truncated to 16 hex chars,
-published in the Calibration Lab and printed in the proof. For the fixture data
-it is `e581a615082f0338`.
+published in the Calibration Lab and printed at the top of
+`normalization-proof.md`.
+
+It deliberately depends on the data, so quoting a fixed value here would go
+stale the moment a judge submits a review. The pristine-fixture value is
+`305adcbf33fe4257`; re-run `node scripts/normalization-proof.js` to regenerate
+it. Change one review, one rubric weight, or K, and it changes. Reorder the
+input and it does not.
 
 ## 5. What the organizer sees
 

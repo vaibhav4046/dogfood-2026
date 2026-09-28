@@ -182,7 +182,20 @@ async function startServer(options = {}) {
     }
   }
 
-  return { app, server, db, port: actualPort, sessions, seedReport: report, close: () => closeDb(db) };
+  return {
+    app,
+    server,
+    db,
+    port: actualPort,
+    sessions,
+    seedReport: report,
+    close: () => closeDb(db),
+    // Exposed so a test can *discover* the route table rather than assert
+    // against a hand-written list of it. A suite that only knows about the
+    // routes someone remembered to list in it cannot find a route nobody
+    // listed, which is exactly how an unlisted peer-score leak survived.
+    appRef: app,
+  };
 }
 
 /**

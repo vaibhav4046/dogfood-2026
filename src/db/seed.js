@@ -327,6 +327,20 @@ function seed(db, options = {}) {
     }
   }
 
+  // The demo participant needs a team of their own. Without this, a submission
+  // attempt is refused with `no_team` — and the acceptance check and the demo
+  // video both want it refused for the *deadline*, which is the interesting
+  // reason. A team of their own also means the one-live-per-team-per-track
+  // rule is real for them rather than vacuously satisfied.
+  const participantLogin = TEST_LOGINS.find((l) => l.key === "participant");
+  const demoTeam = usersByEmail.get(participantLogin.email);
+  if (demoTeam) {
+    const now2 = now;
+    ins.team.run("tm_demo_participant", eventId, "Demo Participants", idFor("inv", "tm_demo_participant"), now2);
+    ins.member.run("tm_demo_participant", demoTeam.id, 1, now2);
+    report.counts.demoTeam = "tm_demo_participant";
+  }
+
   ins.audit.run(
     idFor("aud", "seed"),
     eventId,

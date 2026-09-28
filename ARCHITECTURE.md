@@ -22,15 +22,14 @@ src/
     organizer.js         control room, calibration, rubric, assign, publish, CSV
   services/
     judging.js           raw + normalized aggregation, duplicate detection
-    normalize.js         the scoring mathematics
     audit.js             one row per high-value mutation, refusals included
     csv.js               RFC 4180 export
   views/                 server-rendered HTML, one layout, no client framework
   lib/
-    normalize.js         z-score + shrinkage, deterministic, fingerprinted
+    normalize.js         the scoring mathematics: z-score, shrinkage, fingerprint
 public/assets/desk.js    the only JavaScript in the product: Judge Desk autosave
-scripts/                 boot harness, route probe, proof generator, measurements
-tests/                   unit · authz · acceptance
+scripts/                 boot harness, route probe, browser smoke, proof generator
+tests/                   unit · authz · integration · acceptance
 ```
 
 ## The decisions that shape everything else
@@ -179,10 +178,12 @@ hash that moves when you re-sort the input is not a hash.
 
 | Layer | What it covers | How |
 |---|---|---|
-| `tests/unit` | normalization mathematics, 18 tests | pure functions, no HTTP |
-| `tests/authz` | 27 direct API attacks | real HTTP against a real server |
+| `tests/unit` | normalization mathematics, 16 tests | pure functions, no HTTP |
+| `tests/authz` | peer isolation, CSRF, the whole-surface sweep | real HTTP against a real server |
+| `tests/integration` | rubric changes, review lifecycle, restart, edit-until-deadline | real HTTP, real files |
 | `tests/acceptance` | the seven official checks, plus the *reason* for each | real HTTP, ephemeral port |
 | `scripts/probe.js` | 28 routes and their expected status | real HTTP |
+| `scripts/browser-smoke.js` | the Judge Desk, driven in Chrome | real browser |
 | `official/run.py` | the graded contract | unmodified, against a booted portal |
 
 The acceptance tests assert more than the official checker does. The checker
@@ -190,7 +191,24 @@ only requires a 4xx for a closed event; the test also asserts the error code is
 `event_closed` and that the body names the fixture's close date — because a 400
 for a malformed body would satisfy the checker while proving nothing.
 
-Three real bugs were found by these tests rather than by reading the code:
+`tests/authz/surface-sweep.test.js` exists because an independent red-team
+review found a peer-score leak that every other layer missed:
+`GET /api/organizer/results` was guarded by a role that admitted judges and
+returned `computeResults(db)` with no identity filter, so any judge could read
+every other judge's mean, standard deviation and per-criterion breakdown. The
+route's own comment claimed the opposite and the threat model listed the attack
+as "Solved". Two lessons are now encoded:
+
+- **Naming the peer is not the only way to leak their scores.** An aggregate
+  over every judge's rows leaks them just as effectively — for a judge with one
+  review the "aggregate" *is* their raw score. The assertion scans response
+  bodies, not URLs.
+- **A suite that enumerates its own routes cannot find an unlisted one.** That
+  file discovers the route table from the app object, so adding a route adds it
+  to the sweep. `scripts/prove-sweep-catches-leak.js` reintroduces the exact
+  leak, shows the sweep naming all 31 exposed judges, and restores the file.
+
+Four real bugs were found by tests rather than by reading the code:
 
 1. `min_score`/`max_score` were not mapped to `min`/`max`, so `4 < undefined` was
    false and **every** score passed bounds validation, including 99 and −5.
@@ -198,9 +216,12 @@ Three real bugs were found by these tests rather than by reading the code:
    review save failed with a foreign key error.
 3. The `n < 2` branch kept the raw score, which let the *least* trustworthy
    judge count at full weight — the opposite of what shrinkage is for.
+4. A peer-score leak on an unlisted route, found by the red-team review above.
 
-The third was found by a test asserting a property the first implementation
-failed. It now standardizes against the global distribution and shrinks.
+#3 was found by a test asserting a property the first implementation failed; it
+now standardizes against the global distribution and shrinks. #4 was found by a
+process, not a test, which is why #1–#3's neighbours now have a test and #4 has a
+sweep plus a proof that the sweep is not vacuous.
 
 ## What is deliberately not here
 

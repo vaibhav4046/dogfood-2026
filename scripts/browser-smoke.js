@@ -10,9 +10,8 @@
  * and read the save state back, then reload and confirm the scores persisted.
  */
 
-const fs = require("fs");
 const path = require("path");
-const { chromium } = require(process.env.PLAYWRIGHT_PATH || "playwright");
+const { launchChromium } = require("./browser");
 
 const PORT = Number(process.env.DOGFOOD_PORT || 8080);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -21,29 +20,17 @@ const SESSIONS = {
   organizer: process.env.DOGFOOD_SESSION_ORGANIZER || "ses_19e491d5944c2d83",
 };
 
-function launchOptions() {
-  if (process.env.DOGFOOD_BROWSER) return { channel: process.env.DOGFOOD_BROWSER };
-  if (process.env.DOGFOOD_CHROME_PATH) return { executablePath: process.env.DOGFOOD_CHROME_PATH };
-  return {};
-}
-
 let failures = 0;
+let passes = 0;
 const check = (ok, label, detail = "") => {
-  if (!ok) failures += 1;
+  if (ok) passes += 1;
+  else failures += 1;
   console.log(`${ok ? "ok  " : "FAIL"}  ${label}${detail ? `  ${detail}` : ""}`);
 };
 
 (async () => {
-  const opts = launchOptions();
-  let browser;
-  try {
-    browser = await chromium.launch(opts);
-  } catch (e) {
-    const chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-    if (!fs.existsSync(chrome)) throw e;
-    console.log(`falling back to system Chrome: ${e.message.split("\n")[0]}`);
-    browser = await chromium.launch({ executablePath: chrome });
-  }
+  const { browser, how } = await launchChromium();
+  console.log(`browser: ${how}`);
 
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await ctx.addCookies([{ name: "session", value: SESSIONS.judge_a, url: BASE }]);
@@ -79,41 +66,68 @@ const check = (ok, label, detail = "") => {
   const radiogroup = await page.locator('[role="radiogroup"]').count();
   check(radiogroup === 3, "each criterion is a radiogroup", `got ${radiogroup}`);
 
-  // 3. Choose a specific score and type a note, then wait for the debounce.
+  // 3. Choose scores and type a note.
   await page.locator(".scoregroup").first().locator('input[value="5"]').check();
   await page.locator(".scoregroup").nth(1).locator('input[value="2"]').check();
   await page.locator("#comment").fill("autosave regression: 5 on functionality, 2 on quality");
 
-  // "Draft saved", not /saved/ — the pending message is "Unsaved changes",
-  // which contains the substring "saved", so a loose matcher returned
-  // instantly and the assertions below then ran before the 700 ms debounce had
-  // fired. That made a working autosave look broken.
-  await page
-    .waitForFunction(
-      () => {
-        const el = document.getElementById("save-state");
-        return !!el && /draft saved/i.test(el.textContent || "");
-      },
-      { timeout: 15000 },
-    )
-    .catch(() => {});
+  /*
+   * Wait for the *outcome*, not for a label.
+   *
+   * Two versions of this test failed for the same reason. The first matched
+   * /saved/, which also matches the pending "Unsaved changes". The second
+   * matched "Draft saved" — and latched onto the debounce from the *first*
+   * radio click, before the comment was typed, so the assertion below ran while
+   * the second debounce was still pending. Autosave is debounced by 700 ms per
+   * keystroke, so any label-only wait races it.
+   *
+   * Polling the server for the expected values is what the test actually means,
+   * and it is immune to which debounce happens to be in flight.
+   */
+  const deadline = Date.now() + 15000;
+  let landed = null;
+  while (Date.now() < deadline) {
+    const probe = await (await fetch(`${BASE}/api/judge/desk`, {
+      headers: { Cookie: `session=${SESSIONS.judge_a}` },
+    })).json();
+    const row = probe.items.find((i) => i.projectId === target.projectId);
+    if (
+      row &&
+      row.scores.functionality === 5 &&
+      row.scores.quality === 2 &&
+      (row.comment || "").includes("autosave regression")
+    ) {
+      landed = row;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
 
+  // 4. The save state must agree with the server.
   const saveState = await page.locator("#save-state").innerText();
   check(/draft saved/i.test(saveState), "the save state reports success", `"${saveState}"`);
 
-  // 4. The server actually received it.
-  const desk = await (await fetch(`${BASE}/api/judge/desk`, {
-    headers: { Cookie: `session=${SESSIONS.judge_a}` },
-  })).json();
-  const after = desk.items.find((i) => i.projectId === target.projectId);
-  check(after.scores.functionality === 5, "functionality 5 reached the server", String(after.scores.functionality));
-  check(after.scores.quality === 2, "quality 2 reached the server", String(after.scores.quality));
+  check(!!landed, "the debounced autosave reached the server");
   check(
-    (after.comment || "").includes("autosave regression"),
-    "the note reached the server",
-    after.comment ? "" : "comment empty",
+    landed && landed.scores.functionality === 5,
+    "functionality 5 reached the server",
+    landed ? String(landed.scores.functionality) : "nothing landed",
   );
-  check(after.reviewStatus === "draft", "autosave stored a draft, not a submission", after.reviewStatus);
+  check(
+    landed && landed.scores.quality === 2,
+    "quality 2 reached the server",
+    landed ? String(landed.scores.quality) : "nothing landed",
+  );
+  check(
+    landed && (landed.comment || "").includes("autosave regression"),
+    "the note reached the server",
+    landed ? landed.comment : "nothing landed",
+  );
+  check(
+    landed && landed.reviewStatus === "draft",
+    "autosave stored a draft, not a submission",
+    landed ? landed.reviewStatus : "-",
+  );
 
   // 5. It survives a reload, which is the point of autosave.
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -162,11 +176,10 @@ const check = (ok, label, detail = "") => {
   check(consoleErrors.length === 0, "no console errors during the whole flow", consoleErrors[0] || "");
 
   await browser.close();
-  console.log(`\n${failures === 0 ? "all browser assertions passed" : `${failures} assertion(s) failed`}`);
+  console.log(`\n${passes} / ${passes + failures} browser assertions passed`);
   process.exitCode = failures ? 1 : 0;
 })().catch((e) => {
   console.error(e);
   process.exit(1);
 });
 
-void path;

@@ -138,10 +138,11 @@ Both `prj_07` and `prj_41` appear in the gallery. That is the honest rendering.
 
 | Observed | Consequence |
 |---|---|
-| 2 projects with 2 reviews, 26 with 3, 3 with 4, 4 with 5 | `review_count` and `judge_count` travel with every ranked row into the CSV and the Calibration Lab |
-| judges with 1, 2 and 3 reviews | shrinkage `lambda = n/(n+4)`; `n < 2` per criterion standardizes against the global distribution |
+| 8 projects with 2 reviews, 26 with 3, 3 with 4, 4 with 5 (all 41 reviewed) | `review_count` and `judge_count` travel with every ranked row into the CSV and the Calibration Lab |
+| 2 judges with 1 review, 6 with 2, 7 with 3, 4 with 4, 3 with 5, 5 with 6, one each with 9, 10 and 11 | shrinkage `lambda = n/(n+4)`; `n < 2` per criterion standardizes against the global distribution |
 | `Iva Petrova`: 3 reviews, **sd 0.000** | zero-variance path, score kept raw, flagged, never divided through |
 | `Sana Aziz`: sd 1.105 overall but constant on `functionality` | `degenerate` is now *all* criteria, and `constantCriteria` names which |
+| judge means span **2.000 to 4.222** | a 2.222-point severity range, corrected before averaging |
 
 That last row was a real inconsistency: the first implementation checked only
 the first criterion for zero variance, so the generated proof showed

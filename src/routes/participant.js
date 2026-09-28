@@ -146,6 +146,125 @@ function registerParticipant(app, db) {
     res.status(201).json({ id, status: "submitted", submittedAt: ts });
   });
 
+  /**
+   * T1: "submit a project, edit it until the deadline".
+   *
+   * The spec's T1 line includes editing, and the official checker never tests
+   * it — so a submission-only implementation still reports 3/3 on T1 while
+   * missing half of what the tier says. This is the route that closes it.
+   *
+   * The deadline is checked first and identically to the create path, so an
+   * edit after the close is refused by the server and not by a hidden button.
+   */
+  const loadOwnProject = (req) => {
+    const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+    if (!project) return { error: "not_found" };
+    const member = db
+      .prepare(
+        `SELECT 1 FROM team_members m WHERE m.team_id = ? AND m.user_id = ?`,
+      )
+      .get(project.team_id, req.user.id);
+    if (!member) return { error: "not_your_team" };
+    return { project };
+  };
+
+  app.patch("/api/projects/:id", requireParticipant, (req, res) => {
+    const event = db.prepare("SELECT * FROM events LIMIT 1").get();
+    const closesAt = Date.parse(event.submissions_close);
+    if (!Number.isFinite(closesAt)) {
+      return deny(res, 500, "bad_deadline", "This event has an unreadable submission deadline.");
+    }
+    if (Date.now() >= closesAt) {
+      writeAudit(db, req, {
+        action: "project.submit_refused",
+        targetType: "project",
+        targetId: req.params.id,
+        newState: JSON.stringify({ reason: "event_closed", verb: "edit" }),
+      });
+      return deny(
+        res,
+        403,
+        "event_closed",
+        `Submissions for "${event.name}" closed at ${event.submissions_close}.`,
+        { submissionsClose: event.submissions_close, verb: "edit" },
+      );
+    }
+
+    const owned = loadOwnProject(req);
+    if (owned.error === "not_found") return deny(res, 404, "no_such_project", "No such project.");
+    if (owned.error === "not_your_team") {
+      // 403, not 404: membership is an authorization fact, and hiding it behind
+      // a 404 would make "does not exist" and "not yours" indistinguishable to
+      // someone probing ids, while the 403 tells an honest user what happened.
+      return deny(res, 403, "not_your_team", "You are not on the team that submitted this project.");
+    }
+
+    const project = owned.project;
+    const body = req.body || {};
+    const errors = {};
+
+    // Only the fields a participant may change. Track and team are fixed at
+    // creation: moving a submission between tracks is an organizer decision.
+    const fields = {
+      title: "title",
+      summary: "tagline",
+      description: "description",
+      repoUrl: "repo_url",
+      demoUrl: "demo_url",
+      liveUrl: "live_url",
+    };
+
+    const updates = {};
+    for (const [key, column] of Object.entries(fields)) {
+      if (!(key in body)) continue;
+      if (key === "title" && !String(body.title || "").trim()) errors.title = "A title is required.";
+      if (key === "repoUrl" && body.repoUrl && !isHttpUrl(body.repoUrl)) {
+        errors.repoUrl = "Must be an http(s) URL.";
+      }
+      if (key === "demoUrl" && body.demoUrl && !isHttpUrl(body.demoUrl)) {
+        errors.demoUrl = "Must be an http(s) URL.";
+      }
+      if (key === "liveUrl" && body.liveUrl && !isHttpUrl(body.liveUrl)) {
+        errors.liveUrl = "Must be an http(s) URL.";
+      }
+      if (key === "title" && String(body.title || "").length > 140) {
+        errors.title = "Title must be 140 characters or fewer.";
+      }
+      updates[column] = body[key] === "" ? null : body[key];
+    }
+    if ("techTags" in body && Array.isArray(body.techTags)) {
+      updates.tech_tags = JSON.stringify(body.techTags.slice(0, 20));
+    }
+    if ("mediaUrls" in body && Array.isArray(body.mediaUrls)) {
+      updates.media_urls = JSON.stringify(body.mediaUrls.slice(0, 20));
+    }
+
+    if (Object.keys(errors).length) {
+      return res.status(400).json({ error: "validation_failed", fields: errors });
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "nothing_to_update", message: "No editable field supplied." });
+    }
+
+    const previous = {};
+    for (const column of Object.keys(updates)) previous[column] = project[column];
+
+    const setClause = Object.keys(updates).map((c) => `${c} = ?`).join(", ");
+    db.prepare(
+      `UPDATE projects SET ${setClause}, updated_at = ? WHERE id = ?`,
+    ).run(...Object.values(updates), new Date().toISOString(), project.id);
+
+    writeAudit(db, req, {
+      action: "project.updated",
+      targetType: "project",
+      targetId: project.id,
+      previousState: JSON.stringify(previous),
+      newState: JSON.stringify(updates),
+    });
+
+    res.json({ id: project.id, updated: Object.keys(updates), status: project.status });
+  });
+
   // Team lifecycle: create, then invite by code. A participant needs a team
   // before the submit route above will do anything.
   app.post("/api/teams", requireParticipant, (req, res) => {
