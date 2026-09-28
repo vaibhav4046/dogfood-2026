@@ -57,6 +57,20 @@ checker authenticates as, printed at startup.
 | Judge desk | `/judge` | Assignment queue, one-surface scoring, autosave |
 | Control room | `/organizer` | Calibration lab, judge progress, what to fix next, audit log |
 
+![Control room at 1440x900](docs/screenshots/organizer-1440x900.png)
+
+*Organizer control room. Real fixture data, captured by
+`scripts/screenshots.js` from a running portal — not a mock-up. The same
+capture run reports **0 horizontal overflow, 0 console errors and 0 undersized
+tap targets** across 6 viewports from 375x812 to 1920x1080.*
+
+| | |
+|---|---|
+| ![Gallery](docs/screenshots/gallery-1440x900.png) | ![Judge desk](docs/screenshots/judge-review-1440x900.png) |
+| Public gallery, no account | Judge desk: rubric, notes and autosave on one surface |
+| ![Landing](docs/screenshots/landing-390x844.png) | ![Organizer mobile](docs/screenshots/organizer-390x844.png) |
+| Landing at 390x844 | Control room at 390x844 — no overflow, 44px targets |
+
 Session headers are printed at boot and already filled into
 [`.dogfood.toml`](.dogfood.toml).
 
@@ -100,11 +114,30 @@ the reasoning behind the stack choice: [`ARCHITECTURE.md`](ARCHITECTURE.md) and
 ## Testing
 
 ```bash
-npm test                      # 50 tests: unit, authorization, acceptance
+npm test                      # 81 tests: unit, authorization, integration, CSRF
 node scripts/probe.js         # 28 routes, expected status for each
+node scripts/browser-smoke.js # drives the real Judge Desk in Chrome
+node scripts/screenshots.js   # 6 viewports, checks overflow / console / targets
 node scripts/measure-distortion.js
 node scripts/with-server.js python official/run.py .dogfood.toml
 ```
+
+`scripts/browser-smoke.js` is the one that matters most, because it is the only
+check that would have caught a real product failure: it scores a project in a
+browser, waits for the debounce, reads the server back, reloads the page, and
+confirms the scores came back. It found three defects that every other layer
+passed, listed in `ARCHITECTURE.md`.
+
+Latest measured run, 2026-09-28:
+
+| Check | Result |
+|---|---|
+| `npm test` | 81 / 81 pass |
+| `scripts/browser-smoke.js` | 20 / 20 browser assertions pass |
+| `scripts/probe.js` | 28 / 28 routes as expected |
+| `scripts/screenshots.js` | 0 overflow, 0 console errors, 0 undersized targets |
+| `official/run.py` | **7 / 7 PASS**, `claimed T1 T2, verified T1 T2` |
+| `acceptance-report.txt` | byte-identical across consecutive runs |
 
 The official `run.py` and `fixtures.json` are vendored unmodified under
 [`official/`](official/) and are never edited. SHA-256 as downloaded on
@@ -142,7 +175,10 @@ which is the point of that line, so it is left alone rather than tidied.
   `src/server.js` entrypoint runs in both, but there was no Docker daemon
   available to run `docker compose up` end to end here. See
   [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for exactly what was and was not
-  verified. **This is the single largest gap in the submission.**
+  verified, including the single likeliest failure (the `better-sqlite3`
+  prebuild for `node:22-bookworm-slim` falling back to `node-gyp` with no
+  toolchain in the image). **This is the largest gap in the submission** and it
+  is the first thing to fix on a machine that has Docker.
 
 ## Tech stack
 

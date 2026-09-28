@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="DOGFOOD">
+  <rect width="32" height="32" rx="6" fill="#0b0d10"/>
+  <rect x="4" y="4" width="24" height="24" rx="4" fill="none" stroke="#4d9fff" stroke-width="2"/>
+  <path d="M11 20.5V11.5M16 23V9M21 20.5V11.5" stroke="#e6e9ef" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

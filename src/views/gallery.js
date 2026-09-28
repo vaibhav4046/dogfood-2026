@@ -75,12 +75,12 @@ function renderGallery({ rows, tracks, total, q, track, user }) {
 function renderProject({ row, reviewCount, user }) {
   const custom = JSON.parse(row.custom_answers || "{}");
   const customRows = Object.keys(custom).length
-    ? `<h3>Custom answers</h3><table><tbody>${Object.entries(custom)
+    ? `<h3>Custom answers</h3><div class="scroll"><table><tbody>${Object.entries(custom)
         .map(
           ([k, v]) =>
             `<tr><th style="width:220px">${esc(k)}</th><td>${safeText(v, "—")}</td></tr>`,
         )
-        .join("")}</tbody></table>`
+        .join("")}</tbody></table></div>`
     : "";
 
   const body = `
@@ -104,12 +104,12 @@ function renderProject({ row, reviewCount, user }) {
   </div>
   <div class="card">
     <h3 style="margin-top:0">Links</h3>
-    <table><tbody>
+    <div class="scroll"><table><tbody>
       <tr><th>Repository</th><td>${row.repo_url ? `<a href="${safeUrl(row.repo_url)}" rel="noopener noreferrer nofollow">${safeText(row.repo_url)}</a>` : `<span class="faint">none</span>`}</td></tr>
       <tr><th>Demo</th><td>${row.demo_url ? `<a href="${safeUrl(row.demo_url)}" rel="noopener noreferrer nofollow">${safeText(row.demo_url)}</a>` : `<span class="faint">none</span>`}</td></tr>
       <tr><th>Live</th><td>${row.live_url ? `<a href="${safeUrl(row.live_url)}" rel="noopener noreferrer nofollow">${safeText(row.live_url)}</a>` : `<span class="faint">none</span>`}</td></tr>
       <tr><th>Submitted</th><td class="mono">${safeText(row.submitted_at, "not submitted")}</td></tr>
-    </tbody></table>
+    </tbody></table></div>
   </div>
 </div>
 ${customRows}

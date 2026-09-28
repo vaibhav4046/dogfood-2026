@@ -91,15 +91,70 @@ function registerJudge(app, db) {
   });
 
   app.get("/judge/:projectId", requireJudge, (req, res) => {
-    const assignment = assignedProject(db, req.user.id, req.params.projectId);
+    const projectId = req.params.projectId;
+    const assignment = assignedProject(db, req.user.id, projectId);
     if (!assignment) {
       // Deliberately the same 403 as a track mismatch: a judge who was never
       // assigned a project should not be able to tell "exists but not mine"
       // from "does not exist" by comparing status codes.
       return deny(res, 403, "not_assigned", "That project is not assigned to you.");
     }
+    const track = db.prepare("SELECT name FROM tracks WHERE id = ?").get(assignment.track_id);
+    const review = db
+      .prepare(`SELECT id, status, comment FROM reviews WHERE assignment_id = ?`)
+      .get(assignment.assignmentId);
+    const savedScores = review
+      ? Object.fromEntries(
+          db
+            .prepare(
+              `SELECT c.key, s.value FROM review_scores s JOIN criteria c ON c.id = s.criterion_id
+                WHERE s.review_id = ?`,
+            )
+            .all(review.id)
+            .map((r) => [r.key, r.value]),
+        )
+      : {};
+
+    /*
+     * The route builds the shape the view renders. The view used to read
+     * `assignment.track_name`, `assignment.repo_url` and `assignment.comment`
+     * while the query returned `trackName`, `repoUrl` and no comment at all, so
+     * every one of those rendered as undefined and the desk page came up
+     * visually empty — a screenshot of a real, authorized, correctly-rendered
+     * page that showed nothing. One shape, built next to the SQL that produces
+     * it, instead of two conventions that have to be kept in step by hand.
+     *
+     * `savedScores` is here for the same reason and it is not cosmetic: the
+     * rubric controls used to hardcode value 3 as checked, so a judge who
+     * autosaved 5 and 2, reloaded, and saw 3 and 3 — and submitting would have
+     * recorded 3 and 3. Silent data loss on the one screen where data loss
+     * costs a team's place.
+     */
     res.type("html").send(
-      renderDeskProject({ assignment, criteria: eventCriteria(db), user: req.user }),
+      renderDeskProject({
+        project: {
+          projectId: assignment.projectId,
+          assignmentId: assignment.assignmentId,
+          title: assignment.title,
+          tagline: assignment.tagline,
+          description: assignment.description,
+          trackName: track ? track.name : null,
+          repoUrl: assignment.repoUrl,
+          demoUrl: assignment.demoUrl,
+          liveUrl: assignment.liveUrl,
+          techTags: JSON.parse(assignment.techTagsJson || "[]"),
+        },
+        review: review
+          ? {
+              reviewId: review.id,
+              status: review.status,
+              comment: review.comment,
+              scores: savedScores,
+            }
+          : { reviewId: null, status: null, comment: "", scores: {} },
+        criteria: eventCriteria(db),
+        user: req.user,
+      }),
     );
   });
 
@@ -299,12 +354,23 @@ function assignedProject(db, judgeId, projectId) {
   if (!projectId) return null;
   const row = db
     .prepare(
-      `SELECT a.id AS assignmentId, a.status AS assignmentStatus, p.*
-           FROM assignments a
-           JOIN projects p ON p.id = a.project_id
-          WHERE a.judge_id = ? AND a.project_id = ?
-            AND EXISTS (SELECT 1 FROM judge_track_eligibility e
-                         WHERE e.judge_id = a.judge_id AND e.track_id = p.track_id)`,
+      /*
+       * Both ids are aliased explicitly. `SELECT a.id AS assignmentId, p.*`
+       * was ambiguous in a way that read correctly and behaved wrongly:
+       * `p.*` supplies an `id` column, so `row.id` silently meant the *project*
+       * and not the assignment. Any caller reaching for `row.id` got the
+       * project. Naming both removes the shadowing.
+       */
+      `SELECT a.id AS assignmentId, a.status AS assignmentStatus,
+              p.id AS projectId, p.title, p.tagline, p.description,
+              p.status AS projectStatus, p.track_id,
+              p.repo_url AS repoUrl, p.demo_url AS demoUrl, p.live_url AS liveUrl,
+              p.tech_tags AS techTagsJson, p.submitted_at AS submittedAt
+         FROM assignments a
+         JOIN projects p ON p.id = a.project_id
+        WHERE a.judge_id = ? AND a.project_id = ?
+          AND EXISTS (SELECT 1 FROM judge_track_eligibility e
+                       WHERE e.judge_id = a.judge_id AND e.track_id = p.track_id)`,
     )
     .get(judgeId, projectId);
   return row || null;

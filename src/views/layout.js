@@ -50,6 +50,7 @@ function layout({ title, user, body, active = "", scripts = [] }) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>${esc(title)} · DOGFOOD</title>
 <style>${CSS}</style>
 </head>
@@ -114,7 +115,8 @@ h3{font-size:13px;margin:20px 0 8px;font-weight:600;color:var(--dim);
 .mono{font-family:var(--mono);font-size:12px}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
-  padding:16px}
+  padding:16px;min-width:0}
+.card.flush{padding:0;overflow-x:auto}
 .grid{display:grid;gap:12px}
 .cols-2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .cols-3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
@@ -131,7 +133,19 @@ td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
 tr:last-child td{border-bottom:none}
 tbody tr:hover{background:var(--surface-alt)}
 td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
-.scroll{overflow-x:auto}
+
+/*
+ * Wide tables are the only source of horizontal overflow on this product, and
+ * three surfaces have one. The measured fix is that the scroller has to
+ * constrain its own width: overflow-x:auto alone does nothing when the element
+ * is a block inside a grid, because the table still lays out at its content
+ * width and pushes the page. min-width:0 plus max-width:100% is what actually
+ * contains it; the audit log was overflowing 595px on a 390px viewport before
+ * this.
+ */
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;max-width:100%}
+.scroll>table{min-width:560px}
+@media (max-width:640px){.scroll>table{min-width:480px}}
 
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
 .kpi .label{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
@@ -199,11 +213,60 @@ label:first-of-type{margin-top:0}
 .split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:16px}
 @media (max-width:860px){.split{grid-template-columns:1fr}}
 
-.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
-  clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.skip{position:absolute;left:-9999px}
+/* Grid children default to min-content width, which lets a wide table escape.
+   Zeroing it is what keeps the .scroll scrollers inside their column. */
+.split>*,.grid>*{min-width:0}
+
+/*
+ * Tap targets. Measured, not assumed: the harness reported 4-5 undersized
+ * elements on every page — the header nav links at 20px tall, the brand at
+ * 23px, the skip link at 22px, and the gallery card links ("Details", "Repo")
+ * at 17px. All of them are real touch targets on a phone.
+ *
+ * The fix is a min-height on the element rather than padding on a wrapper,
+ * because a wrapper does not make the link itself easier to hit. On a coarse
+ * pointer every interactive element gets 44px; on a fine pointer the floor is
+ * 24px, which is the WCAG 2.2 target-size minimum and is what the harness
+ * measures.
+ */
+a,button,input,select,textarea{touch-action:manipulation}
+.nav a,.brand{display:inline-flex;align-items:center;min-height:24px}
+/* Bare links in prose and the back-links above a page title were 19-20px tall
+   and are the most-tapped control on the Judge Desk and the detail page. */
+main a:not(.btn):not(.skip){display:inline-flex;align-items:center;min-height:24px}
+.skip{position:absolute;left:-9999px;min-height:44px;display:inline-flex;align-items:center}
 .skip:focus{left:8px;top:8px;z-index:100;background:var(--surface);
   padding:8px 12px;border:1px solid var(--accent);border-radius:var(--r)}
+.proj .meta a,.tags a{display:inline-flex;align-items:center;min-height:24px}
+
+@media (pointer:coarse){
+  .nav a,.brand,.proj .meta a{min-height:44px;padding:0 4px}
+  main a:not(.btn):not(.skip){min-height:44px}
+  .btn{min-height:44px;padding:10px 15px}
+  .btn.sm{min-height:36px}
+  input,select,textarea{min-height:44px}
+  td a{display:inline-flex;align-items:center;min-height:44px}
+  .searchbar .btn{flex:1 0 100%}
+  .scoreopt span{min-height:44px}
+}
+
+/* Judge Desk rubric controls. Radiogroup semantics come from the markup; this is
+   only the affordance, sized so a coarse pointer can hit every value. */
+fieldset.scoregroup{border:none;padding:0;margin:0 0 14px}
+fieldset.scoregroup legend{padding:0;font-size:12px;color:var(--dim);margin-bottom:6px}
+.scoreopts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.scoreopt{position:relative;display:block;margin:0;cursor:pointer}
+.scoreopt input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.scoreopt span{display:flex;align-items:center;justify-content:center;
+  min-height:38px;border:1px solid var(--border-strong);border-radius:var(--r);
+  background:var(--bg);font-variant-numeric:tabular-nums;font-size:13px;transition:border-color .12s}
+.scoreopt:hover span{border-color:var(--faint)}
+.scoreopt input:checked+span{border-color:var(--accent);background:rgba(77,159,255,.12);font-weight:600}
+.scoreopt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+@media (pointer:coarse){.scoreopt span{min-height:44px}}
+
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;
 

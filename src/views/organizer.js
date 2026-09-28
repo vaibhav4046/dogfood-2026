@@ -59,7 +59,7 @@ ${duplicates && duplicates.length
      New duplicates are refused by the API with <span class="mono">409 duplicate_submission</span>.
      These arrived before the deadline and cannot be un-submitted, so they are shown rather
      than merged or hidden. Decide which one enters judging.</div>
-     <div class="card" style="padding:0"><table>
+     <div class="card flush"><table>
        <thead><tr><th>Team</th><th>Track</th><th class="num">Count</th><th>Submissions</th></tr></thead>
        <tbody>${duplicates.map((d) => `<tr>
          <td>${safeText(d.teamName)} <span class="faint mono">${safeText(d.teamId)}</span></td>
@@ -72,7 +72,7 @@ ${duplicates && duplicates.length
      submission per team per track is enforced by the API.</div>`}
 
 <h2>Rubric</h2>
-<div class="card" style="padding:0">
+<div class="card flush">
   <table>
     <thead><tr><th>Criterion</th><th class="num">Weight</th><th class="num">Scale</th><th>Source</th></tr></thead>
     <tbody>${rubric.map((c) => `<tr>
@@ -94,7 +94,7 @@ ${duplicates && duplicates.length
 </div>
 
 <h2>Judge progress</h2>
-<div class="card" style="padding:0">
+<div class="card flush">
   <table>
     <thead><tr><th>Judge</th><th class="num">Assigned</th><th class="num">Done</th><th>Progress</th></tr></thead>
     <tbody>${judgeProgress.map((j) => {
@@ -111,7 +111,7 @@ ${duplicates && duplicates.length
 </div>
 
 <h2>Recent activity</h2>
-<div class="card" style="padding:0">
+<div class="card flush">
   <table>
     <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
     <tbody>${recentAudit.map((a) => `<tr>
@@ -150,7 +150,7 @@ function renderCalibration(r) {
 <div class="split">
   <div>
     <h3>Judge severity</h3>
-    <div class="card" style="padding:0">
+    <div class="card flush">
       <table>
         <thead><tr><th>Judge</th><th class="num">n</th><th class="num">mean</th>
           <th class="num">sd</th><th class="num">λ</th><th>Notes</th></tr></thead>
@@ -180,7 +180,7 @@ function renderCalibration(r) {
 
   <div>
     <h3>Rank movement</h3>
-    <div class="card" style="padding:0">
+    <div class="card flush">
       <table>
         <thead><tr><th>Project</th><th class="num">raw</th><th class="num">norm</th><th class="num">Δ</th></tr></thead>
         <tbody>${moves.length
@@ -207,7 +207,7 @@ function renderCalibration(r) {
 
 function rankTable(rows) {
   if (!rows || !rows.length) return `<div class="card faint">Empty.</div>`;
-  return `<div class="card" style="padding:0"><table>
+  return `<div class="card flush"><table>
     <thead><tr><th class="num">#</th><th>Project</th><th class="num">Score</th><th class="num">n</th></tr></thead>
     <tbody>${rows
       .slice(0, 20)
@@ -242,7 +242,7 @@ function renderAudit({ rows, user }) {
 <h1>Audit log</h1>
 <p class="lede">Every high-value mutation, newest first. Refusals are recorded too —
 "judge_b asked for judge_a's scores" is exactly the row an organizer needs.</p>
-<div class="card scroll" style="padding:0">
+<div class="card flush scroll">
   <table>
     <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Target</th><th>Request</th><th>State</th></tr></thead>
     <tbody>${rows

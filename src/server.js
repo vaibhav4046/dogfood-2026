@@ -54,11 +54,20 @@ function createApp(db, options = {}) {
   // Baseline hardening. A judging platform that stores user-authored HTML
   // needs a real CSP; without one a stored XSS in a project description is
   // script execution for every judge who opens the gallery.
+  //
+  // `style-src` allows 'unsafe-inline' and `script-src` does not. That split is
+  // deliberate and was forced by measurement: a first run of the screenshot
+  // harness reported 24 console errors, one per page load, all of them
+  // "Refused to apply inline style" — every progress bar and flex row silently
+  // rendered unstyled. The fix is to allow inline *styles*, because CSS
+  // injection cannot execute script in any current browser, while keeping
+  // `script-src 'self'` with no 'unsafe-inline', which is the directive that
+  // actually stops a stored XSS. `desk.js` is the only script the product loads.
   app.use((_req, res, next) => {
     res.setHeader("Content-Security-Policy", [
       "default-src 'self'",
       "script-src 'self'",
-      "style-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data:",
       "connect-src 'self'",
       "form-action 'self'",
@@ -73,6 +82,20 @@ function createApp(db, options = {}) {
   });
 
   app.use(attachIdentity(db));
+
+  // Static assets. This was missing entirely, and the screenshot harness caught
+  // it as a 404 on every Judge Desk page: the desk rendered and the autosave
+  // script silently did not exist, so a judge's scores were never saved and
+  // the only clue was a console line nobody reads. A visual pass that only
+  // looked at the page would have missed it entirely.
+  app.use(
+    express.static(path.join(__dirname, "..", "public"), {
+      index: false,
+      etag: true,
+      maxAge: "1h",
+      fallthrough: true,
+    }),
+  );
 
   // After identity, before any handler. A cross-origin state-changing request
   // is refused here rather than half-processed.

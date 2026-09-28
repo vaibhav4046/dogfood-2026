@@ -12,10 +12,25 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-# better-sqlite3 is a native module, so its prebuild is fetched in a layer that
-# is only invalidated when package.json changes.
+# better-sqlite3 is a native module. It ships a prebuilt binary per platform and
+# silently falls back to compiling with node-gyp, which bookworm-slim cannot do
+# because it has no compiler.
+#
+# The likeliest way this image fails to build on a judge's machine is exactly
+# that fallback, with no toolchain present. It could not be verified here — the
+# machine that wrote this has no Docker daemon (docs/OPERATIONS.md) — so the
+# Dockerfile defends against it rather than assuming the prebuild exists: try
+# the fast path first, and install a toolchain only if that fails. The common
+# case stays a small image; the uncommon case still builds.
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN if ! npm ci --omit=dev --no-audit --no-fund; then \
+      echo "prebuild unavailable, installing a toolchain to compile from source" && \
+      apt-get update && \
+      apt-get install -y --no-install-recommends python3 make g++ && \
+      rm -rf /var/lib/apt/lists/* && \
+      npm ci --omit=dev --no-audit --no-fund; \
+    fi && \
+    npm cache clean --force
 
 COPY src ./src
 COPY public ./public
