@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Runtime database. Rebuilt from fixtures on every boot, so a fresh volume and a
+# wiped volume converge on the same seeded state.
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Local scratch
+*.log
+tmp/
+temp-*
+.DS_Store
+Thumbs.db
+
+# Never commit a real .env. The portal needs no secrets: the four test logins
+# are derived from a fixed seed in src/db/index.js and printed at boot.
+.env
+.env.*
+!.env.example

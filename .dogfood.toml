@@ -1,0 +1,19 @@
+[portal]
+base_url = "http://localhost:8080"
+
+[tiers]
+claimed = ["T1", "T2"]
+pitch = "Self-hosted hackathon judging platform: fixture-seeded gallery, server-enforced submission deadline, per-judge isolation enforced in the backend, and a calibration lab that shows raw and normalized rankings side by side."
+
+[auth]
+organizer   = "Cookie: session=ses_19e491d5944c2d83"
+judge_a     = "Cookie: session=ses_a1185b44f2f40a96"
+judge_b     = "Cookie: session=ses_0330ac44bb796cd9"
+participant = "Cookie: session=ses_13cefe95ee8092b3"
+
+[routes]
+gallery      = "/projects"
+submit       = "/api/projects"
+judge_scores = "/api/judge/scores"
+peer_scores  = "/api/judge/scores?judge=judge_a"
+csv_export   = "/api/export.csv"

@@ -1,0 +1,52 @@
+# DOGFOOD 2026 — one command, no cloud.
+#
+#   docker compose up --build
+#
+# Brings up a seeded portal on http://localhost:8080 with the network
+# effectively unused: there is no hosted database, no external API, no auth
+# provider, and no telemetry. The only service is the app itself, because a
+# single deployable that owns a SQLite file is the smallest thing that can
+# satisfy the offline requirement without a database container to wire up.
+
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dogfood-2026:latest
+    container_name: dogfood-portal
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DOGFOOD_DB: /data/dogfood.db
+      DOGFOOD_FIXTURES: /app/official/fixtures.json
+      TZ: UTC
+    volumes:
+      # Named volume so submissions and reviews survive a restart. Delete it
+      # with `docker compose down -v` to return to a freshly seeded state.
+      - dogfood-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    # Belt and braces: the app makes no outbound calls, so this documents it and
+    # makes an accidental dependency a visible failure rather than a slow one.
+    networks:
+      - dogfood-internal
+
+volumes:
+  dogfood-data:
+    name: dogfood-data
+
+networks:
+  dogfood-internal:
+    name: dogfood-internal
+    driver: bridge
