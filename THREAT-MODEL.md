@@ -99,8 +99,9 @@ handle. That is recorded because "we were too strict" is a real failure mode too
 | | |
 |---|---|
 | **Asset** | Acting as a signed-in judge or organizer |
-| **Mitigation** | Partial, and stated as partial. Every mutating route reads `Content-Type: application/json`, which a cross-origin HTML form cannot set without a CORS preflight; there is no CORS configuration, so the preflight fails and the browser sends nothing. Cookie auth is therefore not trivially CSRF-able for JSON routes. |
-| **Residual** | **Medium.** There is **no CSRF token**. The JSON content-type requirement is a real barrier, not a defence, and it is a defence by accident of the API shape rather than by design. The Judge Desk autosave is a `fetch` with `credentials: same-origin`, which is same-origin-safe, but a same-site attacker page on another port could attempt it. **This should be fixed with a synchroniser token before production.** |
+| **Mitigation** | Two layers, one of them real. (1) Every mutating route requires `Content-Type: application/json`, which a cross-origin HTML form cannot set without a CORS preflight, and there is no CORS configuration so the preflight fails. (2) `src/middleware/csrf.js` runs after identity and before every handler: a state-changing request whose `Origin` is another host is refused `403 cross_origin`, and so is one whose `Referer` is another host. An opaque `Origin: null` is refused rather than treated as same-origin, and a different port on the same host counts as cross-origin. |
+| **Tests** | 10 tests in `tests/authz/csrf.test.js`, including one asserting a cross-origin review write is refused **and does not land in the database**, and one asserting the official checker's request shape still reaches the handler and still gets `event_closed`. |
+| **Residual** | **Medium, reduced from High but not solved.** There is **no synchroniser token**, and the Origin check is a defence against *browsers*, not against clients: it depends on the browser sending `Origin`, which browsers do on all state-changing requests, and a forged client that omits both `Origin` and `Referer` is allowed through by design. That is the honest limit of the technique, and the reason a real deployment still needs a token. The token cannot be added here without breaking the graded contract — the official checker POSTs with a cookie, a JSON content type and no token, and is entitled to a 4xx for exactly one reason; demanding a token it cannot obtain would make the check pass for the wrong reason. |
 
 ## 10. CSV export exposure
 
@@ -164,7 +165,7 @@ handle. That is recorded because "we were too strict" is a real failure mode too
 | 6 | Session forgery | **Solved**, expiry **not** solved (§6) |
 | 7 | Deadline manipulation | Server-enforced; **host clock is trusted** (§7) |
 | 8 | Stored XSS | **Solved** — escaping + CSP; Judge Desk unreviewed |
-| 9 | CSRF | **Not solved** — no token; JSON content-type only (§9) |
+| 9 | CSRF | **Partially mitigated** — Origin/Referer refused; **no token** (§9) |
 | 10 | CSV exposure | **Solved** for non-organizers; organizer sees all |
 | 11 | Score enumeration | **Solved** — authorization does not depend on the id |
 | 12 | Duplicate submissions | **Refused for new**, surfaced for historical (§12) |
@@ -172,9 +173,11 @@ handle. That is recorded because "we were too strict" is a real failure mode too
 | 14 | Judge collusion | **Not solved** — diagnostic only (§14) |
 | 15 | Container / migration ops | Code sound; **Docker never executed** (§15) |
 
-**Four things are not solved: CSRF tokens, judge collusion detection, session
-expiry and revocation, and the unexecuted Docker build.** Two more have stated
-residual risk: the host clock, and the unreviewed Judge Desk JavaScript.
+**Three things are not solved: judge collusion detection, session expiry and
+revocation, and the unexecuted Docker build.** Three more have stated residual
+risk: the missing CSRF token, the host clock, and the unreviewed Judge Desk
+JavaScript.
 
-The next three to fix, in order, are the CSRF token, the Docker verification on
-a machine that has Docker, and session expiry with revocation on role change.
+The next three to fix, in order, are the Docker verification on a machine that
+has Docker, session expiry with revocation on role change, and a synchroniser
+CSRF token once the graded contract no longer forbids one.

@@ -54,4 +54,51 @@ function sessionFor(role) {
   return `ses_${h.slice(0, 16)}`;
 }
 
-module.exports = { openDb, migrate, isEmpty, idFor, sessionFor, SEED };
+/**
+ * Close a database and clear its write-ahead log.
+ *
+ * `db.close()` alone is not enough on Windows: the -wal and -shm sidecar files
+ * stay locked for a moment afterwards, so anything that then tries to delete the
+ * directory — a test teardown, a `docker compose down -v` equivalent, an
+ * operator clearing scratch state — fails with EPERM. Checkpointing and closing
+ * explicitly, then unlinking the sidecars, makes the file removable
+ * immediately.
+ */
+function closeDb(db) {
+  if (!db || !db.open) return;
+  try {
+    db.pragma("wal_checkpoint(TRUNCATE)");
+  } catch {
+    /* a read-only or already-closed handle has nothing to checkpoint */
+  }
+  try {
+    db.close();
+  } catch {
+    /* already closed */
+  }
+}
+
+/** Remove a database's files, retrying briefly for the Windows lock release. */
+function removeDbFiles(file) {
+  if (file === ":memory:") return;
+  const targets = [file, `${file}-wal`, `${file}-shm`];
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      for (const t of targets) fs.rmSync(t, { force: true });
+      return true;
+    } catch {
+      sleepSync(40);
+    }
+  }
+  for (const t of targets) fs.rmSync(t, { force: true });
+  return true;
+}
+
+function sleepSync(ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    /* spin briefly; this only runs in teardown */
+  }
+}
+
+module.exports = { openDb, migrate, isEmpty, idFor, sessionFor, SEED, closeDb, removeDbFiles };

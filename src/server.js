@@ -24,9 +24,10 @@ const path = require("path");
 const fs = require("fs");
 const express = require("express");
 
-const { openDb, migrate, isEmpty } = require("./db");
+const { openDb, migrate, isEmpty, closeDb } = require("./db");
 const { seed, loadFixtures } = require("./db/seed");
 const { attachIdentity, requestId } = require("./middleware/auth");
+const { guardCsrf } = require("./middleware/csrf");
 const { registerPublic } = require("./routes/public");
 const { registerParticipant } = require("./routes/participant");
 const { registerJudge } = require("./routes/judge");
@@ -72,6 +73,10 @@ function createApp(db, options = {}) {
   });
 
   app.use(attachIdentity(db));
+
+  // After identity, before any handler. A cross-origin state-changing request
+  // is refused here rather than half-processed.
+  app.use(guardCsrf({ quiet: options.quiet }));
 
   registerPublic(app, db, options);
   registerParticipant(app, db, options);
@@ -154,7 +159,7 @@ async function startServer(options = {}) {
     }
   }
 
-  return { app, server, db, port: actualPort, sessions, seedReport: report };
+  return { app, server, db, port: actualPort, sessions, seedReport: report, close: () => closeDb(db) };
 }
 
 /**
