@@ -24,6 +24,12 @@ That is the unmodified official checker, printed by
 [`acceptance-report.txt`](acceptance-report.txt). Claimed tiers match verified
 tiers.
 
+**Watch the 1m20s demo:** [`docs/demo/demo.mp4`](docs/demo/demo.mp4)
+(H.264) · [`demo.webm`](docs/demo/demo.webm) (VP8) ·
+[captions](docs/demo/demo.srt) · [beat sheet](docs/demo/demo-script.md).
+Recorded by driving the real portal; the middle of it is three refused requests
+shown as requests and responses.
+
 ---
 
 ## What it is
@@ -32,15 +38,18 @@ Forty teams build forty different portals. This one is a judging platform where
 the interesting claims are inspectable rather than asserted:
 
 - **Judge isolation lives in the backend.** `judge_b` asking for `judge_a`'s
-  scores over HTTP gets `403` with no score rows in the body. Twenty-seven
-  direct API attacks are asserted in `tests/authz/adversarial.test.js`, none of
-  which goes through a browser.
+  scores over HTTP gets `403` with no score rows in the body. And it holds on
+  *every* route, not only the one the checker probes —
+  `tests/authz/surface-sweep.test.js` discovers the route table from the app
+  and scans every response body, because an aggregate over all judges' rows
+  leaks them just as effectively as naming one.
 - **The deadline is the server's decision.** The seeded event closed in March.
   `POST /api/projects` returns `403 event_closed` naming the fixture's own close
-  date, whatever the form renders.
+  date, and so does `PATCH /api/projects/:id`.
 - **Scoring can be audited.** Raw and normalized rankings are published side by
   side with every judge's mean, standard deviation, sample size and shrinkage
-  factor. Nothing is adjusted silently.
+  factor. Judge means span **2.000 to 4.222** on the fixtures — a 2.222-point
+  severity range, which is the problem the normalization exists to correct.
 - **Every high-value mutation is on the audit log**, refusals included. "judge_b
   asked for judge_a's scores" is a row an organizer can read.
 
@@ -114,30 +123,45 @@ the reasoning behind the stack choice: [`ARCHITECTURE.md`](ARCHITECTURE.md) and
 ## Testing
 
 ```bash
-npm test                      # 81 tests: unit, authorization, integration, CSRF
-node scripts/probe.js         # 28 routes, expected status for each
-node scripts/browser-smoke.js # drives the real Judge Desk in Chrome
-node scripts/screenshots.js   # 6 viewports, checks overflow / console / targets
-node scripts/measure-distortion.js
-node scripts/with-server.js python official/run.py .dogfood.toml
+npm test                       # 101 tests: unit, authz, integration, acceptance
+npm run probe                  # 28 routes, expected status for each
+npm run smoke:browser          # drives the real Judge Desk in a browser
+npm run screenshots            # 6 viewports; overflow / console / tap targets
+npm run prove:sweep            # reintroduces the peer-score leak and proves the sweep catches it
+npm run acceptance             # the official checker, unmodified
+npm run acceptance:save        # ...and writes acceptance-report.txt as UTF-8
 ```
 
-`scripts/browser-smoke.js` is the one that matters most, because it is the only
-check that would have caught a real product failure: it scores a project in a
-browser, waits for the debounce, reads the server back, reloads the page, and
-confirms the scores came back. It found three defects that every other layer
-passed, listed in `ARCHITECTURE.md`.
+`npm run smoke:browser` is the one that matters most, because it is the only
+check that could catch a class of failure the others cannot. It scores a project
+in a browser, waits for the debounce, reads the server back, reloads the page,
+and confirms the scores returned. It found four defects that the unit tests,
+the authorization tests and the official checker all passed — listed in
+`ARCHITECTURE.md`.
 
 Latest measured run, 2026-09-28:
 
 | Check | Result |
 |---|---|
-| `npm test` | 81 / 81 pass |
-| `scripts/browser-smoke.js` | 20 / 20 browser assertions pass |
-| `scripts/probe.js` | 28 / 28 routes as expected |
-| `scripts/screenshots.js` | 0 overflow, 0 console errors, 0 undersized targets |
+| `npm test` | 101 / 101 pass |
+| `npm run smoke:browser` | 19 / 19 browser assertions pass |
+| `npm run probe` | 28 / 28 routes as expected |
+| `npm run screenshots` | 0 overflow, 0 console errors, 0 undersized tap targets |
 | `official/run.py` | **7 / 7 PASS**, `claimed T1 T2, verified T1 T2` |
-| `acceptance-report.txt` | byte-identical across consecutive runs |
+| `acceptance-report.txt` | byte-identical across consecutive runs, UTF-8, 494 bytes |
+| `npm run prove:sweep` | reintroduces the leak, sweep names all 31 exposed judges, file restored |
+
+Browser-based checks need Playwright, which is an **optional** dependency
+because the graded contract does not need a 150 MB browser download:
+
+```bash
+npm ci && npx playwright install chromium
+```
+
+If it is absent, those two scripts print the command to run instead of a bare
+module error, and fall back to system Chrome if the headless shell is missing.
+`npm test`, `npm run probe` and the official checker need nothing beyond the two
+runtime dependencies.
 
 The official `run.py` and `fixtures.json` are vendored unmodified under
 [`official/`](official/) and are never edited. SHA-256 as downloaded on
@@ -156,29 +180,49 @@ which is the point of that line, so it is left alone rather than tidied.
 
 ## Limitations, stated plainly
 
-- **No community voting.** T3 is not attempted. A T3 that is half-built is worse
-  than a T2 that is finished.
-- **No pairwise / Bradley-Terry mode.** Documented as future work in
-  `JUDGING.md` rather than shipped half-done.
-- **Authentication is a seeded session table, not a login flow.** The spec's own
-  design says the checker never logs in and asks for a working header, so there
-  is no password UI. Sessions do not expire inside the event window, which is
-  deliberate for the same reason and would not be acceptable in production.
-- **Judges are seeded from fixture identities, not invited accounts.**
-  `invitations` and `judge_track_eligibility` exist and are enforced; inviting
-  by email is not implemented.
-- **No bulk import.** Export is CSV; import is not. See `ARCHITECTURE.md`.
-- **The Judge Desk is hand-built, not a component library.** That is a real cost
-  in accessibility primitives, and it is the surface to check first.
 - **Docker was not executed on the machine that wrote this.** The
   `Dockerfile` and `docker-compose.yml` are complete and the same
   `src/server.js` entrypoint runs in both, but there was no Docker daemon
   available to run `docker compose up` end to end here. See
   [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for exactly what was and was not
-  verified, including the single likeliest failure (the `better-sqlite3`
-  prebuild for `node:22-bookworm-slim` falling back to `node-gyp` with no
-  toolchain in the image). **This is the largest gap in the submission** and it
-  is the first thing to fix on a machine that has Docker.
+  verified, including the likeliest failure (the `better-sqlite3` prebuild for
+  `node:22-bookworm-slim` falling back to `node-gyp`) and the one piece of good
+  news inside it: that fallback is now *positively verified*, because the
+  install compiled from source on this machine rather than using a prebuild.
+  **This is the largest gap in the submission.**
+- **No community voting (T3).** Not attempted. A T3 that is half-built is worse
+  than a T2 that is finished, and ballot-stuffing defence without ballots is not
+  a feature.
+- **No pairwise / Bradley-Terry mode.** Documented as future work in
+  `JUDGING.md` rather than shipped half-done.
+- **No CSRF token.** A cross-origin `Origin` or `Referer` is refused on every
+  state-changing request, and the JSON content-type requirement is a second
+  barrier — but neither defends against a forged client that omits both headers.
+  A synchroniser token is the real fix and cannot be added without breaking the
+  graded contract, since the official checker POSTs with a cookie, a JSON
+  content type and no token. `THREAT-MODEL.md` §9.
+- **No collusion detection.** The Calibration Lab shows per-judge mean, sd and
+  `lambda`, so an organizer can *see* two suspiciously flat judges. Nothing
+  flags the pair, and judges who never share a project cannot be compared at
+  all by this data. `THREAT-MODEL.md` §14.
+- **Sessions do not expire and cannot be revoked.** The four seeded logins
+  derive from a fixed seed and last until 2099, which is what makes the
+  acceptance run reproducible across days and would be unacceptable in
+  production. `THREAT-MODEL.md` §6 and §13.
+- **Authentication is a seeded session table, not a login flow.** The spec's own
+  design is that the checker never logs in and is handed a working header.
+- **Judges are seeded from fixture identities, not invited accounts.**
+  `invitations` and `judge_track_eligibility` exist and are enforced; inviting
+  by email is not implemented.
+- **No bulk import.** Export is CSV; import is not.
+- **The Judge Desk is hand-built, not a component library.** That is a real cost
+  in accessibility primitives, and it is the surface to check first.
+- **The four fixture data-quality problems are surfaced, not fixed.** Three teams
+  share the name `StillTrail`; `prj_07` and `prj_41` are a genuine duplicate
+  submission from the same team in the same track. The API refuses *new*
+  duplicates; the historical one is reported in the Control Room for an
+  organizer to resolve, because a submission accepted before the deadline
+  cannot be un-submitted. `DATA-MODEL.md`.
 
 ## Tech stack
 

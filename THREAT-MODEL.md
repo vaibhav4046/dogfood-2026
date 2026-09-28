@@ -23,13 +23,38 @@ refusal, because the API happily hands them to anyone logged in.
 |---|---|
 | **Asset** | Every judge's individual scores and comments |
 | **Mitigation** | `resolveRequestedJudge` reads `?judge=` / `?judge_id=` / `:judgeId` and passes it to `sameJudge`, which compares it against the session-derived `req.user`. Any mismatch is `403 peer_isolation` with **no score rows in the body**. A refusal that leaks the data is a refusal in name only, so the test asserts the payload, not just the status. |
-| **Tests** | `judge_b cannot read judge_a's scores by query parameter`, `…by path`, both asserting `!leaksScores(body)` |
-| **Residual** | **Low.** An organizer can read every judge's scores — that is their job, and the Calibration Lab needs it. There is no per-judge consent to suppress. |
+| **Tests** | `tests/authz/adversarial.test.js` — the query-parameter and path forms, both asserting `!leaksScores(body)`. |
+| **Residual** | **Low on this route. And that qualification used to be missing.** |
 
-The one thing that *was* a bug: `sameJudge` originally compared only the
-internal id, so a judge typing the handle `.dogfood.toml` documents
-(`judge_a`) was refused their **own** scores. It now accepts id, email, or
-handle. That is recorded because "we were too strict" is a real failure mode too.
+**This entry previously read "Solved" and it was not.** An independent
+red-team review found `GET /api/organizer/results` guarded by
+`requireJudgingStaff` — which admits judges — returning `computeResults(db)`
+with no identity passed in. Any judge could read all 31 judges' means, standard
+deviations, per-criterion breakdowns and coverage. For a judge with exactly one
+review the "aggregate" *is* their raw score, and `judge_a`'s per-criterion mean
+came back as `{functionality: 5, quality: 2, innovation: 3}` — which is
+precisely what `judge_a` privately submitted.
+
+The route is deleted. `/api/judge/scores` and the organizer-only
+`/api/organizer/calibration` already covered both jobs.
+
+Two lessons are now enforced rather than written down:
+
+- **Naming the peer is not the only way to leak their scores.** An aggregate
+  over every judge's rows is the same disclosure by a different route. The
+  assertions scan response bodies and the `judgeStats` structure, not URLs.
+- **A test suite that enumerates its own routes cannot find an unlisted one.**
+  `tests/authz/surface-sweep.test.js` discovers the route table from the app
+  object, so adding a route adds it to the sweep. The 27 hand-written attack
+  tests and the 28 asserted routes were all true and all missed this one.
+
+`npm run prove:sweep` reintroduces the exact leak, runs the sweep, and restores
+the file. It names all 31 exposed judges and exits 0 having proved the test is
+not vacuous.
+
+The one thing that does remain by design: an organizer can read every judge's
+scores, because the Calibration Lab needs it. There is no per-judge consent to
+suppress.
 
 ## 2. Participant reaches a judge endpoint
 
@@ -177,6 +202,11 @@ handle. That is recorded because "we were too strict" is a real failure mode too
 revocation, and the unexecuted Docker build.** Three more have stated residual
 risk: the missing CSRF token, the host clock, and the unreviewed Judge Desk
 JavaScript.
+
+Attack #1 was found **open** by an independent review after every other layer
+had passed, and the document above had claimed it closed. That is the reason
+the sweep exists, and the reason this summary is written from test names rather
+than from intentions.
 
 The next three to fix, in order, are the Docker verification on a machine that
 has Docker, session expiry with revocation on role change, and a synchroniser

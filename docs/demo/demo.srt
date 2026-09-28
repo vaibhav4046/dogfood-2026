@@ -1,0 +1,71 @@
+1
+00:00:00,644 --> 00:00:03,644
+One command. A seeded portal. This is the real application.
+
+2
+00:00:05,315 --> 00:00:08,715
+Organizer control room. The event, its submissions, and judge progress.
+
+3
+00:00:10,211 --> 00:00:13,611
+Calibration lab: raw and normalized, side by side.
+
+4
+00:00:14,957 --> 00:00:18,157
+Public gallery. Forty-one fixture projects. No account required.
+
+5
+00:00:19,774 --> 00:00:22,574
+Search and track filter, server-side.
+
+6
+00:00:22,882 --> 00:00:27,082
+A participant tries to submit after the deadline. The server refuses: 403 event_closed, naming the fixture's own close date. The form being disabled is a courtesy; this is the enforcement.
+
+7
+00:00:27,314 --> 00:00:31,314
+Assignment is the authorization unit. A judge sees only assigned projects, in eligible tracks.
+
+8
+00:00:32,555 --> 00:00:35,555
+Judge desk. Project, rubric, evidence and notes on one surface.
+
+9
+00:00:38,281 --> 00:00:41,681
+Autosave is debounced and says so. A judge's work is never lost to a refresh.
+
+10
+00:00:43,327 --> 00:00:46,727
+Reload. The scores come back: 5. Silence here would be data loss.
+
+11
+00:00:46,947 --> 00:00:51,147
+403 peer_isolation. This is the check the spec weights most heavily, and the refusal carries no score rows in its body.
+
+12
+00:00:51,359 --> 00:00:55,559
+403 forbidden. A participant is a known user with a valid session, so this is a role check, not a missing login.
+
+13
+00:00:55,775 --> 00:00:58,975
+The CSV is organizer-only too. The refusal body is not a CSV.
+
+14
+00:01:00,746 --> 00:01:05,346
+Judge severity spans 2.000 to 4.222 on a 1-5 scale. Raw and normalized are both published, with the movement and a reason for each.
+
+15
+00:01:05,574 --> 00:01:09,974
+Published in normalized mode. Fingerprint 305adcbf33fe4257 is written to the audit log, so the exact ranking is reproducible.
+
+16
+00:01:11,514 --> 00:01:14,514
+Every high-value mutation is here — refusals included.
+
+17
+00:01:14,730 --> 00:01:19,130
+Seven of seven. Claimed T1 T2, verified T1 T2. This file is committed unedited.
+
+18
+00:01:19,349 --> 00:01:24,349
+Self-hosted, offline, judge isolation in the backend, and a scoring model you can argue with.

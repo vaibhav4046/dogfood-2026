@@ -31,6 +31,6 @@
     "express": "4.21.2"
   },
   "optionalDependencies": {
-    "playwright": "1.49.1"
+    "playwright": "^1.60.0"
   }
 }
