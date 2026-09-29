@@ -190,12 +190,7 @@ which is the point of that line, so it is left alone rather than tidied.
   a feature.
 - **No pairwise / Bradley-Terry mode.** Documented as future work in
   `JUDGING.md` rather than shipped half-done.
-- **No CSRF token.** A cross-origin `Origin` or `Referer` is refused on every
-  state-changing request, and the JSON content-type requirement is a second
-  barrier — but neither defends against a forged client that omits both headers.
-  A synchroniser token is the real fix and cannot be added without breaking the
-  graded contract, since the official checker POSTs with a cookie, a JSON
-  content type and no token. `THREAT-MODEL.md` §9.
+- **CSRF token is skipped when no browser header is present.** A cookie-authenticated write with `Origin`, `Referer` or `Sec-Fetch-Site` needs the session-bound token; curl and the official checker send none of them and pass unchanged. `THREAT-MODEL.md` §9.
 - **No collusion detection.** The Calibration Lab shows per-judge mean, sd and
   `lambda`, so an organizer can *see* two suspiciously flat judges. Nothing
   flags the pair, and judges who never share a project cannot be compared at

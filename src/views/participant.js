@@ -1,6 +1,6 @@
 "use strict";
 
-const { layout, safeText } = require("./layout");
+const { layout, safeText, csrfField } = require("./layout");
 
 /**
  * Participant submission form.
@@ -46,6 +46,7 @@ ${error ? `<div class="banner bad">${esc(error)}</div>` : ""}
 ${notice ? `<div class="banner good">${esc(notice)}</div>` : ""}
 
 <form class="card" method="post" action="/api/projects">
+  ${csrfField(user)}
   <label for="title">Title</label>
   <input id="title" name="title" maxlength="140" required>
 

@@ -1,35 +1,38 @@
 "use strict";
 
 /**
- * Cross-origin request defence.
+ * Cross-origin request defence: an Origin/Referer check plus a session-bound
+ * synchronizer token.
  *
- * The threat model records that this platform has no CSRF token, and that the
- * JSON content-type requirement is a real barrier rather than a defence. This
- * module is the cheap half of the fix, and it is honest about being the cheap
- * half.
+ * Rules for a state-changing request (anything but GET, HEAD, OPTIONS):
+ *   1. An `Origin` or `Referer` naming another host is refused (cross_origin).
+ *   2. If the request is authenticated by the session cookie AND looks
+ *      browser-originated (it carries `Origin`, `Referer` or `Sec-Fetch-Site`),
+ *      it must present the token: header `X-CSRF-Token` or body field `_csrf`.
+ *      The token is HMAC-SHA256(server secret, session token), so it is bound to
+ *      one session and cannot be computed without the secret. A missing or wrong
+ *      token is refused (csrf_token).
+ *   3. A request with none of those three headers passes unchanged. Browsers
+ *      always send at least one of them on a cross-site write, so a request
+ *      without them is curl or the official checker, and CSRF needs a browser.
+ *      That is the reason the graded request shape (cookie, JSON, no Origin)
+ *      is not affected.
  *
- * What it does:
- *   - a state-changing request with an `Origin` header from another host is
- *     refused outright, before the handler runs
- *   - a state-changing request with no `Origin` but a `Referer` from another
- *     host is refused
+ * Exempt from rule 2: /auth/login, /auth/register and /auth/redeem. Their forms
+ * render before any session exists and carry no token.
  *
- * What it deliberately does NOT do, and why:
- *   - It does not require a token. A token would break the graded contract: the
- *     official checker POSTs to /api/projects with a session cookie, a JSON
- *     content type and no token, and it is entitled to a 4xx for one reason
- *     only. Demanding a token it cannot obtain would make the check pass for the
- *     wrong reason. `THREAT-MODEL.md` records the missing token as an open item.
- *   - It does not defend against a cross-site request that carries no `Origin`
- *     at all. Browsers send `Origin` on all state-changing requests, so this is
- *     a defence against browsers and not against curl. A forged client that
- *     omits `Origin` gets through, which is the honest limit of the technique.
+ * Secret: DOGFOOD_CSRF_SECRET, else 32 random bytes per process (tokens then
+ * stop validating after a restart, and pages must be reloaded).
  *
  * Same-origin is decided against the request's own host, so it works on
  * localhost, on a LAN IP and behind a reverse proxy without configuration.
  */
 
+const crypto = require("node:crypto");
+
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const PRE_AUTH_PATHS = new Set(["/auth/login", "/auth/register", "/auth/redeem"]);
+const SECRET = process.env.DOGFOOD_CSRF_SECRET || crypto.randomBytes(32).toString("hex");
 
 /** Methods that change state and therefore need an origin check. */
 function needsCheck(req) {
@@ -51,33 +54,51 @@ function selfHost(req) {
   return (host || "").split(",")[0].trim().toLowerCase();
 }
 
+function tokenFor(sessionToken) {
+  return crypto.createHmac("sha256", SECRET).update(String(sessionToken)).digest("hex");
+}
+
+function tokenMatches(presented, sessionToken) {
+  const a = Buffer.from(String(presented || ""));
+  const b = Buffer.from(tokenFor(sessionToken));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function usesSessionCookie(req) {
+  return /(?:^|;\s*)session=/.test(req.headers.cookie || "");
+}
+
 function guardCsrf(options = {}) {
   return function csrf(req, res, next) {
+    const cookieAuthed = Boolean(req.user && req.sessionToken && usesSessionCookie(req));
+    if (cookieAuthed) {
+      // Non-enumerable so it never leaks into a JSON dump of req.user.
+      Object.defineProperty(req.user, "csrfToken", {
+        value: tokenFor(req.sessionToken), enumerable: false, configurable: true,
+      });
+    }
     if (!needsCheck(req)) return next();
 
     const self = selfHost(req);
     const origin = req.get("origin");
     const referer = req.get("referer");
+    const fetchSite = req.get("sec-fetch-site");
 
-    if (origin) {
+    if (origin && hostOf(origin) !== self) {
       // "null" is what a sandboxed iframe or a privacy-stripped request sends.
-      // It is not same-origin, so it is refused.
-      if (hostOf(origin) !== self) {
-        return refuse(res, req, "cross_origin", `Origin ${origin} is not this host (${self}).`, options);
-      }
-      return next();
+      return refuse(res, req, "cross_origin", `Origin ${origin} is not this host (${self}).`, options);
+    }
+    if (!origin && referer && hostOf(referer) !== self) {
+      return refuse(res, req, "cross_origin", `Referer ${referer} is not this host (${self}).`, options);
     }
 
-    if (referer) {
-      const ref = new URL(referer);
-      if (ref.host.toLowerCase() !== self) {
-        return refuse(res, req, "cross_origin", `Referer ${referer} is not this host (${self}).`, options);
-      }
-      return next();
-    }
+    const fromBrowser = Boolean(origin || referer || fetchSite);
+    if (!fromBrowser || !cookieAuthed || PRE_AUTH_PATHS.has(req.path)) return next();
 
-    // Neither header present: curl, the acceptance checker, or a forged client.
-    // Allowed, and the reason is recorded here rather than assumed.
+    const presented = req.get("x-csrf-token") || (req.body && req.body._csrf);
+    if (!tokenMatches(presented, req.sessionToken)) {
+      return refuse(res, req, "csrf_token", "Missing or invalid CSRF token.", options);
+    }
     return next();
   };
 }
@@ -90,4 +111,4 @@ function refuse(res, req, code, message, options) {
   return res.status(403).json({ error: code, message });
 }
 
-module.exports = { guardCsrf, needsCheck, selfHost, SAFE_METHODS };
+module.exports = { guardCsrf, needsCheck, selfHost, tokenFor, SAFE_METHODS };

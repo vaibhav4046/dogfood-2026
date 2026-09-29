@@ -45,9 +45,13 @@
   }
 
   function send(payload) {
+    var meta = document.querySelector('meta[name="csrf-token"]');
     return fetch("/api/judge/reviews", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": meta ? meta.getAttribute("content") : "",
+      },
       credentials: "same-origin",
       body: JSON.stringify(payload),
     }).then(function (res) {

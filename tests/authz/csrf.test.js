@@ -12,6 +12,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const { startServer } = require("../../src/server");
+const { tokenFor } = require("../../src/middleware/csrf");
 
 let base;
 let server;
@@ -94,7 +95,7 @@ test("a same-origin POST is allowed through", async () => {
   const project = queue.items[0].projectId;
   const r = await post(
     "/api/judge/reviews",
-    { Cookie: `session=${S.judge_a}`, Origin: self() },
+    { Cookie: `session=${S.judge_a}`, Origin: self(), "X-CSRF-Token": tokenFor(S.judge_a) },
     { projectId: project, scores: { functionality: 4, quality: 4, innovation: 4 } },
   );
   assert.strictEqual(r.status, 200, "a same-origin write was refused");
@@ -116,7 +117,7 @@ test("a same-origin Referer is allowed when Origin is absent", async () => {
   // by reaching the deadline check rather than the CSRF check.
   const r = await post(
     "/api/projects",
-    { Cookie: `session=${S.participant}`, Referer: `${self()}/submit` },
+    { Cookie: `session=${S.participant}`, Referer: `${self()}/submit`, "X-CSRF-Token": tokenFor(S.participant) },
     { title: "probe", summary: "probe", trackId: "trk_01" },
   );
   assert.strictEqual(r.json.error, "event_closed", "the CSRF guard fired on a same-origin referer");
