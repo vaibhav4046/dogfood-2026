@@ -29,16 +29,14 @@ const LEAK = `
 
 function main() {
   const original = fs.readFileSync(TARGET, "utf8");
-  const anchor = "    res.json({ ok: true, reviewId, status, savedAt: now });\n  });\n}";
-  const idx = original.indexOf(anchor);
-  if (idx === -1) {
-    const alt = original.indexOf("    res.json({ ok: true, reviewId, status, savedAt: now });\r\n  });\r\n}");
-    if (alt === -1) {
-      console.error("could not find the anchor; refusing to guess");
-      process.exit(2);
-    }
+  const sig = /function registerJudge\([^)]*\)\s*\{\r?\n/;
+  const m = sig.exec(original);
+  if (!m) {
+    console.error("could not find registerJudge; refusing to guess");
+    process.exit(2);
   }
-  const patched = original.replace(anchor, anchor.replace("\n}", LEAK + "}"));
+  const at = m.index + m[0].length;
+  const patched = original.slice(0, at) + LEAK + original.slice(at);
   fs.writeFileSync(TARGET, patched);
 
   let failed = false;

@@ -69,8 +69,7 @@ Docker was the gap we could not close on the machine that wrote the code, becaus
 ## What is left
 
 The honest list: no T3 community layer, no pairwise
-Bradley-Terry mode, no collusion detector, and CSRF protection limited to an
-Origin and Referer check with no synchronizer token. We would rather publish
+Bradley-Terry mode, no collusion detector, and a hash-chained audit log that cannot detect deletion of its newest rows without an externally stored head hash. We would rather publish
 that list than a feature list, because a judge who finds an unlisted gap stops
 trusting everything else in the document too.
 

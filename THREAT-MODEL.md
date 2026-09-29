@@ -199,7 +199,7 @@ suppress.
 | 6 | Session forgery | **Solved**, expiry **not** solved (§6) |
 | 7 | Deadline manipulation | Server-enforced; **host clock is trusted** (§7) |
 | 8 | Stored XSS | **Solved** — escaping + CSP; Judge Desk unreviewed |
-| 9 | CSRF | **Partially mitigated** — Origin/Referer refused; **no token** (§9) |
+| 9 | CSRF | **Mitigated for browsers** — Origin/Referer check plus a session-bound synchronizer token; non-browser clients (no Origin, Referer or Sec-Fetch-Site) pass by design (§9) |
 | 10 | CSV exposure | **Solved** for non-organizers; organizer sees all |
 | 11 | Score enumeration | **Solved** — authorization does not depend on the id |
 | 12 | Duplicate submissions | **Refused for new**, surfaced for historical (§12) |
@@ -218,6 +218,4 @@ had passed, and the document above had claimed it closed. That is the reason
 the sweep exists, and the reason this summary is written from test names rather
 than from intentions.
 
-The next three to fix, in order, are the Docker verification on a machine that
-has Docker, session expiry with revocation on role change, and a synchroniser
-CSRF token once the graded contract no longer forbids one.
+Open items, in order: organizer-initiated session revocation on role change, an externally stored audit head hash (the chain cannot see deletion of its newest rows on its own), and a publish gate that requires every assigned review to be submitted.

@@ -99,11 +99,14 @@ python official/run.py .dogfood.toml
 | Claim | Status | Command | Evidence |
 |---|---|---|---|
 | Official acceptance 7/7 | verified in CI, see limits | `npm run acceptance` | `acceptance-report.txt` |
-| Test suite 109 pass, 0 fail, 0 skipped | verified locally | `npm test` | this commit's CI run |
+| Test suite 131 pass, 0 fail, 0 skipped | verified locally | `npm test` | this commit's CI run |
 | All 28 routes behave as expected | verified locally | `npm run probe` | `scripts/probe.js` |
 | Judge cannot read peer scores | unit-tested + mutation proof | `npm run prove:sweep` | sweep names all 31 judges when the leak is reintroduced |
 | Normalization is reproducible | unit-tested, fingerprint recorded | `npm run proof` | `normalization-proof.md` |
 | CSV export neutralises formula injection | verified locally | `npm test` | `docs/evidence/csv-injection/` |
+| Hash-chained audit log, tamper detected | unit-tested + mutation proof | `npm run audit:verify` | `tests/authz/audit-chain.test.js` |
+| Results embargo + append-only review history | unit-tested + mutation proof | `npm test` | `tests/authz/embargo.test.js` |
+| CSRF synchronizer token | unit-tested + mutation proof | `npm test` | `tests/authz/csrf-token.test.js` |
 | Demo identity refused outside demo mode | unit-tested | `npm test` | `tests/integration/real-auth.test.js` |
 | `docker compose up --build` | verified in CI | GitHub Actions run | [36605284848](https://github.com/vaibhav4046/dogfood-2026/actions/runs/36605284848) |
 
@@ -116,8 +119,9 @@ python official/run.py .dogfood.toml
 - **No Bradley-Terry pairwise mode.** Normalization is shrinkage only.
 - **No collusion detector.** Score-correlation analysis is a named
   non-goal, not a shipped feature.
-- **CSRF protection is Origin/Referer only.** There is no synchronizer or
-  double-submit token. The refused path is tested; the absence is a known gap.
+- **CSRF:** browser-originated writes need a session-bound token in addition to the Origin/Referer check; requests with no Origin, Referer or Sec-Fetch-Site (curl, the official checker) are not browser-borne and pass. Tested, with mutation proof (`tests/authz/csrf-token.test.js`).
+- **Audit log is hash-chained** (`npm run audit:verify`); it does not detect deletion of the newest rows or a full rewrite by someone with database access unless `headHash` is stored elsewhere.
+- **Results are embargoed until publish** and reviews lock at publish; the publish route only requires one submitted review, so an organizer can publish early.
 - **The seeded demo database contains a historical duplicate**
   (`prj_07` / `prj_41`). It is preserved and surfaced rather than silently
   deleted, because the official fixtures ship that way. New duplicate
