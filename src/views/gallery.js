@@ -31,7 +31,7 @@ function renderGallery({ rows, tracks, total, q, track, user }) {
         <div class="meta">
           <span class="tag">${esc(r.track_name)}</span>
           <span>${esc(r.team_name)}</span>
-          <span class="faint">${r.review_count} review${r.review_count === 1 ? "" : "s"}</span>
+          ${r.review_count == null ? "" : `<span class="faint">${r.review_count} review${r.review_count === 1 ? "" : "s"}</span>`}
         </div>
         ${tags ? `<div class="tags">${tags}</div>` : ""}
         <div class="meta" style="margin-top:6px">
@@ -94,7 +94,7 @@ function renderProject({ row, reviewCount, user }) {
   <span class="tag">${esc(row.track_name)}</span>
   <span class="tag">${esc(row.team_name)}</span>
   <span class="pill dim">${esc(row.status)}</span>
-  ${reviewCount ? `<span class="pill good">${reviewCount} review${reviewCount === 1 ? "" : "s"}</span>` : `<span class="pill dim">not yet reviewed</span>`}
+  ${reviewCount == null ? "" : reviewCount ? `<span class="pill good">${reviewCount} review${reviewCount === 1 ? "" : "s"}</span>` : `<span class="pill dim">not yet reviewed</span>`}
 </div>
 
 <div class="split">

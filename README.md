@@ -52,6 +52,7 @@ the interesting claims are inspectable rather than asserted:
   side with every judge's mean, standard deviation, sample size and shrinkage
   factor. Judge means span **2.000 to 4.222** on the fixtures — a 2.222-point
   severity range, which is the problem the normalization exists to correct.
+- **Results are embargoed until publish.** Scores, rankings, calibration and review counts are organizer-only; after publish `GET /api/results` is public and reviews return `409 review_locked`. Review edits are kept as append-only versions at `/api/organizer/reviews/:id/history`.
 - **Every high-value mutation is on the audit log**, refusals included. "judge_b
   asked for judge_a's scores" is a row an organizer can read.
 - **The audit log is a hash chain.** Each row stores `sha256(prev_hash + row)`;
