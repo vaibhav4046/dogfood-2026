@@ -71,4 +71,4 @@ jobs:
           echo "offline proof: portal serves locally, outbound request failed as required"
       - name: No outbound URLs in shipped source
         run: |
-          ! grep -rnE "https?://" src public --include=*.js --include=*.css --include=*.html | grep -vE "localhost|127\.0\.0\.1|example\.org|github\.com/vaibhav4046|apache\.org|www\.w3\.org"
+          ! grep -rnE "https?://" src public --include=*.js --include=*.css --include=*.html | grep -vE "localhost|127\.0\.0\.1|example\.org|github\.com/vaibhav4046|apache\.org|www\.w3\.org|placeholder=\"https://\""
