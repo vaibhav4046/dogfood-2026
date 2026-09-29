@@ -232,6 +232,8 @@ const MIGRATIONS = [
   },
 ];
 
+MIGRATIONS.push(...require("./migrations-auth"));
+
 function migrate(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
     id TEXT PRIMARY KEY, applied_at TEXT NOT NULL);`);

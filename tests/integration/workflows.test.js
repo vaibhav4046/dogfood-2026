@@ -349,9 +349,23 @@ test("migrations are idempotent and record themselves", () => {
     db = openDb(file);
     const first = migrate(db);
     const second = migrate(db);
-    assert.deepStrictEqual(first, ["001_core"], "the first migrate did not apply 001_core");
+
+    // The invariant, not a hardcoded list. This test used to assert exactly
+    // ["001_core"] and failed the moment the real-auth migrations were added,
+    // which is the wrong thing for it to care about: adding a migration is the
+    // normal way this schema grows. What has to hold is that the core migration
+    // is present, that a second run applies nothing, and that every row the
+    // first run claimed to apply is actually recorded.
+    assert.ok(first.includes("001_core"), `001_core missing from ${JSON.stringify(first)}`);
+    assert.ok(first.length > 0, "the first migrate applied nothing");
     assert.deepStrictEqual(second, [], "a second migrate re-applied a migration");
-    assert.strictEqual(db.prepare("SELECT COUNT(*) n FROM schema_migrations").get().n, 1);
+
+    const recorded = db.prepare("SELECT id FROM schema_migrations ORDER BY id").all().map((r) => r.id);
+    assert.deepStrictEqual(
+      recorded.slice().sort(),
+      first.slice().sort(),
+      "schema_migrations does not match what the first migrate reported",
+    );
   } finally {
     cleanup(dir, db);
   }

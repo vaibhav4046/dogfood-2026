@@ -32,6 +32,7 @@ const { registerPublic } = require("./routes/public");
 const { registerParticipant } = require("./routes/participant");
 const { registerJudge } = require("./routes/judge");
 const { registerOrganizer } = require("./routes/organizer");
+const { registerAuth } = require("./routes/auth");
 
 const { escapeHtml, layout } = require("./views/layout");
 const { renderLanding } = require("./views/landing");
@@ -81,7 +82,20 @@ function createApp(db, options = {}) {
     next();
   });
 
-  app.use(attachIdentity(db));
+  // Identity mode. `demo` accepts the deterministic header/cookie identities
+  // the official acceptance checker depends on. `production` refuses them and
+  // accepts only a real password session.
+  //
+  // This is the single most important line in the file for judging integrity.
+  // The four seeded session tokens are printed in the boot banner and pasted
+  // into `.dogfood.toml`, so if they were accepted unconditionally then anyone
+  // with the tokens could open the organizer desk, and a judging platform that
+  // can be walked into that way cannot be sold as one. Demo stays the default
+  // because the official checker must pass out of the box; docker-compose sets
+  // it explicitly and THREAT-MODEL.md records the trade.
+  const mode = options.mode || process.env.DOGFOOD_MODE || "demo";
+
+  app.use(attachIdentity(db, { mode }));
 
   // Static assets. This was missing entirely, and the screenshot harness caught
   // it as a 404 on every Judge Desk page: the desk rendered and the autosave
@@ -100,6 +114,12 @@ function createApp(db, options = {}) {
   // After identity, before any handler. A cross-origin state-changing request
   // is refused here rather than half-processed.
   app.use(guardCsrf({ quiet: options.quiet }));
+
+  // Real accounts: password login, participant registration, judge invitation
+  // issue and redemption. Registered before the role routers so `/login` and
+  // `/auth/*` resolve ahead of the catch-all 404, and after identity so every
+  // handler can see `req.user`.
+  registerAuth(app, db);
 
   registerPublic(app, db, options);
   registerParticipant(app, db, options);

@@ -17,6 +17,7 @@
  */
 
 const crypto = require("crypto");
+const { hashToken } = require("../services/accounts");
 
 const ROLES = ["visitor", "participant", "judge", "organizer", "admin"];
 
@@ -34,7 +35,9 @@ function cookieFrom(req) {
   if (!raw) return null;
   for (const part of raw.split(";")) {
     const [k, ...v] = part.trim().split("=");
-    if (k === "session") return decodeURIComponent(v.join("="));
+    if (k === "session") {
+      try { return decodeURIComponent(v.join("=")); } catch { return null; }
+    }
   }
   return null;
 }
@@ -45,19 +48,22 @@ function cookieFrom(req) {
  * visitor, never an error — the route's own guard decides whether that is a
  * 401.
  */
-function attachIdentity(db) {
+function attachIdentity(db, { mode = process.env.DOGFOOD_MODE || "demo" } = {}) {
   const findUser = db.prepare(
-    `SELECT u.id, u.email, u.name, u.role, u.login_key, s.expires_at
+    `SELECT u.id, u.email, u.name, u.role, u.login_key, s.expires_at,
+            s.kind, s.revoked_at
        FROM sessions s JOIN users u ON u.id = s.user_id
-      WHERE s.token = ?`,
+      WHERE s.token = ? OR s.token = ?`,
   );
   return function attach(req, _res, next) {
     const token = cookieFrom(req) || bearerFrom(req);
     req.user = null;
     req.sessionToken = token || null;
     if (token) {
-      const row = findUser.get(token);
-      if (row && new Date(row.expires_at).getTime() > Date.now()) {
+      const row = findUser.get(token, hashToken(token));
+      if (row && !row.revoked_at && (mode === "demo" || row.kind === "real") &&
+          new Date(row.expires_at).getTime() > Date.now()) {
+        req.sessionKind = row.kind;
         req.user = {
           id: row.id,
           email: row.email,
