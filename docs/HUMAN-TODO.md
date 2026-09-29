@@ -67,8 +67,7 @@ matching form field. The two that people get wrong:
 
 - **Tiers claimed:** `T1, T2`. Nothing else. Do not claim T3 or T4.
 - **Known limits:** paste the list from `docs/SUBMISSION.md` verbatim,
-  including that Docker has not been executed. Removing it is the single
-  easiest way to lose the submission on a judge's spot check.
+  as written. Docker is now verified in CI (run linked in the README).
 
 ## H5 — Write Up Quest (if you are entering it)
 
@@ -87,6 +86,5 @@ https://github.com/vaibhav4046/dogfood-2026/blob/master/docs/WRITEUP.md
 - **No secrets.** DOGFOOD has no API keys, no database URL, no external
   service. The four test logins are derived from a fixed seed and printed in
   the boot banner.
-- **No Docker on this machine.** Docker is proven by the judge, not by us. The
-  Dockerfile is reviewed but unrun, and every document says so.
+- **No Docker on this machine.** Docker is proven on GitHub Actions instead (green run linked in the README).
 - **No npm publish, no registry, no DNS.**

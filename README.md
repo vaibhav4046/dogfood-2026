@@ -198,15 +198,8 @@ which is the point of that line, so it is left alone rather than tidied.
   `lambda`, so an organizer can *see* two suspiciously flat judges. Nothing
   flags the pair, and judges who never share a project cannot be compared at
   all by this data. `THREAT-MODEL.md` §14.
-- **Sessions do not expire and cannot be revoked.** The four seeded logins
-  derive from a fixed seed and last until 2099, which is what makes the
-  acceptance run reproducible across days and would be unacceptable in
-  production. `THREAT-MODEL.md` §6 and §13.
-- **Authentication is a seeded session table, not a login flow.** The spec's own
-  design is that the checker never logs in and is handed a working header.
-- **Judges are seeded from fixture identities, not invited accounts.**
-  `invitations` and `judge_track_eligibility` exist and are enforced; inviting
-  by email is not implemented.
+- **Two kinds of session.** Real logins (password, scrypt) expire after 7 days and logout revokes them server-side. The four seeded demo logins are deterministic and last until 2099, which is what makes the acceptance run reproducible; they are demo identities and are refused outside demo mode (	ests/integration/real-auth.test.js). There is no organizer button to revoke another user's sessions yet.
+- **Judge invitations are single-use, expiring links** created by the organizer. Team invitations by link are not implemented; teams are formed with the existing join route.
 - **No bulk import.** Export is CSV; import is not.
 - **The Judge Desk is hand-built, not a component library.** That is a real cost
   in accessibility primitives, and it is the surface to check first.
