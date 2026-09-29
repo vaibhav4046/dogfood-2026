@@ -1,5 +1,7 @@
 # DOGFOOD
 
+[![acceptance](https://github.com/vaibhav4046/dogfood-2026/actions/workflows/acceptance.yml/badge.svg)](https://github.com/vaibhav4046/dogfood-2026/actions/workflows/acceptance.yml)
+
 **A self-hosted hackathon submission and judging platform that shows you its
 working.** One command, one SQLite file, no network, no cloud account.
 
@@ -180,16 +182,7 @@ which is the point of that line, so it is left alone rather than tidied.
 
 ## Limitations, stated plainly
 
-- **Docker was not executed on the machine that wrote this.** The
-  `Dockerfile` and `docker-compose.yml` are complete and the same
-  `src/server.js` entrypoint runs in both, but there was no Docker daemon
-  available to run `docker compose up` end to end here. See
-  [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for exactly what was and was not
-  verified, including the likeliest failure (the `better-sqlite3` prebuild for
-  `node:22-bookworm-slim` falling back to `node-gyp`) and the one piece of good
-  news inside it: that fallback is now *positively verified*, because the
-  install compiled from source on this machine rather than using a prebuild.
-  **This is the largest gap in the submission.**
+- **Docker was never run on the machine that wrote this** (no Docker daemon). It is proven on GitHub Actions instead: [run 36605284848](https://github.com/vaibhav4046/dogfood-2026/actions/runs/36605284848) built the image with `docker compose up --build`, ran the unmodified official checker (`claimed T1 T2, verified T1 T2`), and a second job booted the same image on an `internal` network with no route out, served the gallery, and failed an outbound request as required.
 - **No community voting (T3).** Not attempted. A T3 that is half-built is worse
   than a T2 that is finished, and ballot-stuffing defence without ballots is not
   a feature.

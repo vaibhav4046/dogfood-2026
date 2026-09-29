@@ -104,14 +104,11 @@ python official/run.py .dogfood.toml
 | Normalization is reproducible | unit-tested, fingerprint recorded | `npm run proof` | `normalization-proof.md` |
 | CSV export neutralises formula injection | verified locally | `npm test` | `docs/evidence/csv-injection/` |
 | Demo identity refused outside demo mode | unit-tested | `npm test` | `tests/integration/real-auth.test.js` |
-| `docker compose up --build` | **not verified** | see limits | none |
+| `docker compose up --build` | verified in CI | GitHub Actions run | [36605284848](https://github.com/vaibhav4046/dogfood-2026/actions/runs/36605284848) |
 
 ## Known limits, written by us
 
-- **Docker has never been executed.** This machine has no Docker daemon and
-  `winget` and `choco` are not available. The `Dockerfile` and
-  `docker-compose.yml` exist and are reviewed but unrun. Until a CI run is
-  green the README says so in the first screen. Do not claim it works.
+- **Docker was not run locally** (no daemon on the build machine). It is proven in CI: https://github.com/vaibhav4046/dogfood-2026/actions/runs/36605284848 (compose build, unmodified checker, offline network proof).
 - **T3 and T4 are not implemented.** No community voting, no discussion, no
   REST API, no webhooks, no bulk import.
 - **No Bradley-Terry pairwise mode.** Normalization is shrinkage only.
