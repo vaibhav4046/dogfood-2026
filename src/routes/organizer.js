@@ -10,7 +10,7 @@ const crypto = require("crypto");
  */
 
 const { requireOrganizer, requireJudgingStaff, deny } = require("../middleware/auth");
-const { writeAudit, listAudit } = require("../services/audit");
+const { writeAudit, listAudit, verifyChain } = require("../services/audit");
 const { computeResults, duplicateSubmissions } = require("../services/judging");
 const { buildCsv } = require("../services/csv");
 const { renderControlRoom, renderAudit } = require("../views/organizer");
@@ -22,7 +22,11 @@ function registerOrganizer(app, db) {
 
   app.get("/organizer/audit", requireOrganizer, (req, res) => {
     const rows = listAudit(db, { limit: 300 });
-    res.type("html").send(renderAudit({ rows, user: req.user }));
+    res.type("html").send(renderAudit({ rows, user: req.user, chain: verifyChain(db) }));
+  });
+
+  app.get("/api/organizer/audit/verify", requireOrganizer, (req, res) => {
+    res.json(verifyChain(db));
   });
 
   /**

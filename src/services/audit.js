@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("crypto");
+const { appendRow, verifyChain } = require("./audit-chain");
 
 /**
  * Audit trail.
@@ -40,24 +41,19 @@ function writeAudit(db, req, { action, targetType, targetId, previousState = nul
     throw new Error(`audit: unknown action "${action}"`);
   }
   const id = `aud_${crypto.randomUUID().slice(0, 12)}`;
-  db.prepare(
-    `INSERT INTO audit_events
-      (id,event_id,actor_id,actor_role,action,target_type,target_id,
-       previous_state,new_state,request_id,created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-  ).run(
+  appendRow(db, {
     id,
-    req.eventId || null,
-    req.user ? req.user.id : null,
-    req.user ? req.user.role : "anonymous",
+    event_id: req.eventId || null,
+    actor_id: req.user ? req.user.id : null,
+    actor_role: req.user ? req.user.role : "anonymous",
     action,
-    targetType,
-    targetId,
-    previousState,
-    newState,
-    req.requestId || crypto.randomUUID(),
-    new Date().toISOString(),
-  );
+    target_type: targetType,
+    target_id: targetId,
+    previous_state: previousState,
+    new_state: newState,
+    request_id: req.requestId || crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+  });
   return id;
 }
 
@@ -80,4 +76,4 @@ function listAudit(db, { eventId, limit = 200 } = {}) {
   return rows;
 }
 
-module.exports = { writeAudit, listAudit, ACTIONS };
+module.exports = { writeAudit, listAudit, verifyChain, ACTIONS };

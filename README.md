@@ -54,6 +54,8 @@ the interesting claims are inspectable rather than asserted:
   severity range, which is the problem the normalization exists to correct.
 - **Every high-value mutation is on the audit log**, refusals included. "judge_b
   asked for judge_a's scores" is a row an organizer can read.
+- **The audit log is a hash chain.** Each row stores `sha256(prev_hash + row)`;
+  `npm run audit:verify` and `GET /api/organizer/audit/verify` report the first row that no longer matches.
 
 Seeded on boot from the official `fixtures.json`: **41 projects, 40 teams,
 8 tracks, 30 judges, 126 completed reviews**, plus the four session headers the

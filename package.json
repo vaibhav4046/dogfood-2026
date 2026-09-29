@@ -20,6 +20,7 @@
     "probe": "node scripts/with-server.js node scripts/probe.js",
     "smoke:browser": "node scripts/with-server.js node scripts/browser-smoke.js",
     "screenshots": "node scripts/with-server.js node scripts/screenshots.js",
+    "audit:verify": "node scripts/audit-verify.js",
     "prove:sweep": "node scripts/prove-sweep-catches-leak.js",
     "proof": "node scripts/normalization-proof.js",
     "distortion": "node scripts/measure-distortion.js",

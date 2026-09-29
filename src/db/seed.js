@@ -25,6 +25,7 @@ const path = require("path");
 
 const { idFor, sessionFor } = require("./index");
 const { CRITERIA, DEFAULT_WEIGHTS } = require("./criteria");
+const { appendRow } = require("../services/audit-chain");
 
 const FIXTURE_PATH =
   process.env.DOGFOOD_FIXTURES || path.join(__dirname, "..", "..", "official", "fixtures.json");
@@ -100,11 +101,6 @@ function seed(db, options = {}) {
     criterion: db.prepare(
       `INSERT OR REPLACE INTO criteria
        (id,event_id,key,label,weight,min_score,max_score,sort_order) VALUES (?,?,?,?,?,?,?,?)`,
-    ),
-    audit: db.prepare(
-      `INSERT OR IGNORE INTO audit_events
-       (id,event_id,actor_id,actor_role,action,target_type,target_id,previous_state,new_state,request_id,created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     ),
   };
 
@@ -341,18 +337,22 @@ function seed(db, options = {}) {
     report.counts.demoTeam = "tm_demo_participant";
   }
 
-  ins.audit.run(
-    idFor("aud", "seed"),
-    eventId,
-    null,
-    "system",
-    "seed.fixtures_loaded",
-    "event",
-    eventId,
-    null,
-    JSON.stringify({ projects: report.counts.projects, reviews: report.counts.reviews }),
-    idFor("req", "seed"),
-    now,
+  appendRow(
+    db,
+    {
+      id: idFor("aud", "seed"),
+      event_id: eventId,
+      actor_id: null,
+      actor_role: "system",
+      action: "seed.fixtures_loaded",
+      target_type: "event",
+      target_id: eventId,
+      previous_state: null,
+      new_state: JSON.stringify({ projects: report.counts.projects, reviews: report.counts.reviews }),
+      request_id: idFor("req", "seed"),
+      created_at: now,
+    },
+    { orIgnore: true },
   );
 
   return report;

@@ -232,7 +232,7 @@ const MIGRATIONS = [
   },
 ];
 
-MIGRATIONS.push(...require("./migrations-auth"));
+MIGRATIONS.push(...require("./migrations-auth"), ...require("./migrations-audit-chain"));
 
 function migrate(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -249,6 +249,7 @@ function migrate(db) {
     if (applied.has(m.id)) continue;
     const run = db.transaction(() => {
       db.exec(m.sql);
+      if (m.up) m.up(db);
       record.run(m.id, new Date().toISOString());
     });
     run();

@@ -108,7 +108,7 @@ suppress.
 | **Asset** | The integrity of the submission window |
 | **Mitigation** | `POST /api/projects` compares the event row's `submissions_close` to `Date.now()` **before reading anything in the body**. An unparseable date is `500 bad_deadline`, not an eternal open window. The form is disabled *and* the server refuses, so a crafted client changes nothing. |
 | **Tests** | The official T1 check, plus a test asserting the error code is `event_closed` and the body names the fixture's close date |
-| **Residual** | **Medium.** The comparison uses the **server's** clock. An organizer with host access can move the clock or edit the event row; `event.status_changed` would be audited, but a direct DB edit is not. The audit log records the *action*, not the *clock*. |
+| **Residual** | **Medium.** The comparison uses the **server's** clock. An organizer with host access can move the clock or edit the event row; `event.status_changed` would be audited, and a direct edit of an existing audit row is caught by the audit hash chain (`GET /api/organizer/audit/verify`, `npm run audit:verify`). The chain does not catch deletion of the newest rows or a full rewrite by someone with database access; record `headHash` elsewhere to cover that. The audit log records the *action*, not the *clock*. |
 
 ## 8. Stored XSS in a project submission
 

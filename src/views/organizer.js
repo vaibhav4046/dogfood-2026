@@ -235,13 +235,19 @@ function list(title, items, hint) {
   </div>`;
 }
 
-function renderAudit({ rows, user }) {
+function renderAudit({ rows, user, chain }) {
+  const chainLine = !chain
+    ? ""
+    : chain.ok
+      ? `<p class="mono" data-chain="ok">Hash chain intact: ${chain.rows} rows, head ${esc(chain.headHash.slice(0, 16))}</p>`
+      : `<p class="mono" data-chain="broken" role="alert">Hash chain broken at row ${chain.firstBrokenIndex} of ${chain.rows}. Rows are ordered oldest first by position.</p>`;
   const body = `
 <a class="skip" href="#main">Skip to content</a>
 <p style="margin:0 0 12px"><a href="/organizer">&larr; Control room</a></p>
 <h1>Audit log</h1>
 <p class="lede">Every high-value mutation, newest first. Refusals are recorded too —
 "judge_b asked for judge_a's scores" is exactly the row an organizer needs.</p>
+${chainLine}
 <div class="card flush scroll">
   <table>
     <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Target</th><th>Request</th><th>State</th></tr></thead>
