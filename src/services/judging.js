@@ -21,7 +21,8 @@ function gatherReviews(db) {
          FROM reviews r
          JOIN review_scores s ON s.review_id = r.id
          JOIN criteria c      ON c.id = s.criterion_id
-        WHERE r.status = 'submitted'`,
+        WHERE r.status = 'submitted'
+        ORDER BY r.judge_id, r.project_id, c.key`,
     )
     .all();
 
@@ -40,7 +41,8 @@ function computeResults(db, { persist = false } = {}) {
   const event = db.prepare(`SELECT * FROM events LIMIT 1`).get();
   const criteria = normaliseWeights(
     db
-      .prepare(`SELECT * FROM criteria WHERE event_id = ? ORDER BY sort_order, key`)
+      .prepare(`SELECT id, key, label, weight, min_score AS min, max_score AS max, sort_order
+                  FROM criteria WHERE event_id = ? ORDER BY sort_order, key`)
       .all(event.id),
   );
   const reviews = gatherReviews(db);

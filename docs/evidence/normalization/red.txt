@@ -1,0 +1,130 @@
+✖ the rubric that reaches the JSON carries min and max (1.0473ms)
+✖ every normalized score is a finite number inside the rubric scale (0.1716ms)
+✖ no project is pinned to a normalized score of zero (0.9798ms)
+✖ normalized ranks are spread, not collapsed onto one shared rank (0.1339ms)
+✔ raw scores are untouched by normalization (0.1139ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 1
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 129.2981
+
+✖ failing tests:
+
+test at tests\unit\results-live.test.js:33:1
+✖ the rubric that reaches the JSON carries min and max (1.0473ms)
+  AssertionError [ERR_ASSERTION]: functionality lost its lower bound
+  
+  undefined !== 1
+  
+      at TestContext.<anonymous> (D:\project\dogfood-2026\tests\unit\results-live.test.js:36:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\unit\results-live.test.js:41:1
+✖ every normalized score is a finite number inside the rubric scale (0.1716ms)
+  AssertionError [ERR_ASSERTION]: Small Meadow normalized to 0.8889, outside 1..5
+      at TestContext.<anonymous> (D:\project\dogfood-2026\tests\unit\results-live.test.js:45:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\unit\results-live.test.js:49:1
+✖ no project is pinned to a normalized score of zero (0.9798ms)
+  AssertionError [ERR_ASSERTION]: projects with a normalized score of 0
+  + actual - expected
+  
+  + [
+  +   'Green Switch',
+  +   'North Compass',
+  +   'Dry Compass',
+  +   'North Drift',
+  +   'Still Beacon',
+  +   'Salt Ledger',
+  +   'Open Beacon',
+  +   'Quiet Anchor',
+  +   'Green Lantern',
+  +   'Copper Orbit',
+  +   'Salt Kiln',
+  +   'Open Kiln',
+  +   'Paper Thread',
+  +   'Copper Kiln',
+  +   'Slow Quarry',
+  +   'Glass Beacon',
+  +   'Dry Relay',
+  +   'Flat Thread',
+  +   'Flat Meadow',
+  +   'Flat Relay',
+  +   'Paper Harbour',
+  +   'Salt Ferry',
+  +   'Loud Ledger',
+  +   'Slow Trail',
+  +   'Iron Switch',
+  +   'Salt Drift',
+  +   'Salt Loom',
+  +   'Deep Beacon',
+  +   'Paper Anchor',
+  +   'Slow Loom'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (D:\project\dogfood-2026\tests\unit\results-live.test.js:51:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'Green Switch',  'North Compass',
+      'Dry Compass',   'North Drift',
+      'Still Beacon',  'Salt Ledger',
+      'Open Beacon',   'Quiet Anchor',
+      'Green Lantern', 'Copper Orbit',
+      'Salt Kiln',     'Open Kiln',
+      'Paper Thread',  'Copper Kiln',
+      'Slow Quarry',   'Glass Beacon',
+      'Dry Relay',     'Flat Thread',
+      'Flat Meadow',   'Flat Relay',
+      'Paper Harbour', 'Salt Ferry',
+      'Loud Ledger',   'Slow Trail',
+      'Iron Switch',   'Salt Drift',
+      'Salt Loom',     'Deep Beacon',
+      'Paper Anchor',  'Slow Loom'
+    ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\unit\results-live.test.js:54:1
+✖ normalized ranks are spread, not collapsed onto one shared rank (0.1339ms)
+  AssertionError [ERR_ASSERTION]: only 8 distinct normalized ranks over 41 projects
+      at TestContext.<anonymous> (D:\project\dogfood-2026\tests\unit\results-live.test.js:57:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

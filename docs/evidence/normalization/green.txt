@@ -1,0 +1,13 @@
+✔ the rubric that reaches the JSON carries min and max (0.5259ms)
+✔ every normalized score is a finite number inside the rubric scale (0.5658ms)
+✔ no project is pinned to a normalized score of zero (0.6719ms)
+✔ normalized ranks are spread, not collapsed onto one shared rank (0.1535ms)
+✔ raw scores are untouched by normalization (0.1296ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 124.1892
