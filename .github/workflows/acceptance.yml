@@ -1,0 +1,74 @@
+name: acceptance
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start the portal with docker compose
+        run: |
+          start=$(date +%s)
+          docker compose up --build -d
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/healthz >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8080/healthz
+          echo "cold_start_seconds=$(( $(date +%s) - start ))" | tee -a "$GITHUB_STEP_SUMMARY"
+          docker image inspect dogfood-2026:latest --format 'image_size_bytes={{.Size}}' | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the unmodified official checker
+        run: |
+          python3 official/run.py .dogfood.toml | tee acceptance-report.txt
+          grep -q "claimed T1 T2, verified T1 T2" acceptance-report.txt
+          ! grep -q FAIL acceptance-report.txt
+          { echo '```'; cat acceptance-report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-report
+          path: acceptance-report.txt
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+
+  offline-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Boot on an internal (no internet) network and try to reach the internet
+        run: |
+          docker build -t dogfood-2026:offline .
+          docker network create --internal dogfood-offline
+          docker run -d --name portal --network dogfood-offline dogfood-2026:offline
+          for i in $(seq 1 60); do
+            if docker exec portal node -e "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then break; fi
+            sleep 1
+          done
+          docker exec portal node -e "fetch('http://127.0.0.1:8080/projects').then(r=>{console.log('gallery',r.status);process.exit(r.ok?0:1)})"
+          if docker exec portal node -e "AbortSignal.timeout; fetch('https://example.com',{signal:AbortSignal.timeout(4000)}).then(()=>process.exit(0)).catch(()=>process.exit(1))"; then
+            echo "FAIL: outbound request succeeded on an internal network"; exit 1
+          fi
+          echo "offline proof: portal serves locally, outbound request failed as required"
+      - name: No outbound URLs in shipped source
+        run: |
+          ! grep -rnE "https?://" src public --include=*.js --include=*.css --include=*.html | grep -vE "localhost|127\.0\.0\.1|example\.org|github\.com/vaibhav4046|apache\.org|www\.w3\.org"
