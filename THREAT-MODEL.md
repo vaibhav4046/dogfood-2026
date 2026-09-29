@@ -176,6 +176,15 @@ suppress.
 | **Mitigation** | Migrations are numbered, append-only, each applied in its own transaction and recorded in `schema_migrations`; a half-applied migration cannot be skipped. A restart against an existing volume detects a non-empty `events` table and **skips seeding**, so nothing duplicates. Foreign keys are ON (SQLite defaults them off). WAL plus a 5 s busy timeout. |
 | **Residual** | **Low**, with one unverified item: `docker compose up --build` has never been executed, because this machine has no Docker daemon. The highest-probability failure is the `better-sqlite3` prebuild for `node:22-bookworm-slim`; if no prebuilt binary matches it falls back to `node-gyp`, and `bookworm-slim` has no compiler toolchain. The fix is a `build-essential` layer. This is stated in `docs/OPERATIONS.md` and in the README's limitations, and it is **the largest gap in the submission.** |
 
+## 16. Results read before publish, and review edits after it
+
+| | |
+|---|---|
+| **Asset** | Raw and normalized scores, rankings, calibration and per-project aggregates before the organizer publishes; the immutability of a review afterwards |
+| **Mitigation** | `services/embargo.js` `isPublished` is the single check. Until `events.status = 'published'`, `GET /api/results` is 403 for everyone, the gallery and project page omit review counts, and calibration, export and control room stay organizer-only. A judge's own raw reviews at `/api/judge/scores` are exempt. After publish the rankings (no judge statistics) are public and read-only, and `POST /api/judge/reviews` is `409 review_locked`. Every review save appends a row to `review_versions`, which has triggers refusing UPDATE and DELETE. History is readable by the organizer and by the owning judge only. |
+| **Tests** | `tests/authz/embargo.test.js`; the embargo sweep in `tests/authz/surface-sweep.test.js`. Mutation: `isPublished` forced to `true` made both files fail. |
+| **Residual** | The organizer can publish with judges still mid-review; the publish route only requires one submitted review. Version rows record the judge id and time but are not hash-chained, so someone with database access can still rewrite them. |
+
 ---
 
 ## Summary
@@ -197,6 +206,7 @@ suppress.
 | 13 | Replay of seeded logins | **Open by design**, disclosed (§13) |
 | 14 | Judge collusion | **Not solved** — diagnostic only (§14) |
 | 15 | Container / migration ops | Code sound; **Docker never executed** (§15) |
+| 16 | Results before publish, edits after | **Solved** for non-organizers; history is not tamper-evident (§16) |
 
 **Three things are not solved: judge collusion detection, session expiry and
 revocation, and the unexecuted Docker build.** Three more have stated residual

@@ -13,6 +13,7 @@ const { requireOrganizer, requireJudgingStaff, deny } = require("../middleware/a
 const { writeAudit, listAudit, verifyChain } = require("../services/audit");
 const { computeResults, duplicateSubmissions } = require("../services/judging");
 const { buildCsv } = require("../services/csv");
+const { listVersions } = require("../services/review-history");
 const { renderControlRoom, renderAudit } = require("../views/organizer");
 
 function registerOrganizer(app, db) {
@@ -54,6 +55,13 @@ function registerOrganizer(app, db) {
 
   app.get("/api/organizer/calibration", requireOrganizer, (req, res) => {
     res.json(computeResults(db, { persist: true }));
+  });
+
+  app.get("/api/organizer/reviews/:id/history", requireOrganizer, (req, res) => {
+    const review = db.prepare(`SELECT id, judge_id, project_id FROM reviews WHERE id = ?`).get(req.params.id);
+    const versions = listVersions(db, req.params.id);
+    if (!review && versions.length === 0) return deny(res, 404, "no_such_review", "No such review.");
+    res.json({ reviewId: req.params.id, versions });
   });
 
   app.get("/api/organizer/audit", requireOrganizer, (req, res) => {

@@ -250,3 +250,27 @@ test("a judge is refused the organizer's aggregate and audit routes", async () =
     assert.ok(res.status === 401 || res.status === 403, `${p} returned ${res.status} to judge_b`);
   }
 });
+
+test("before publish, no GET route leaks an embargoed field to public, participant or a judge", async () => {
+  // Own-review fields (weightedScore, scores) are allowed on a judge's own routes,
+  // so the markers below are the ones that only appear in results, calibration
+  // and per-project aggregates.
+  const markers = [/judgeStats/, /perCriterion/, /"rank"\s*:/, /"normalized"\s*:/, /"lambda"/, /\b\d+ reviews?\b/];
+  const routes = discoverGetRoutes(app);
+  assert.ok(routes.length > 8);
+  const leaks = [];
+  for (const who of [null, "participant", "judge_b"]) {
+    const headers = who ? as(who) : {};
+    for (const route of routes) {
+      const url = concrete(route.path, "prj_01");
+      const res = await fetch(base + url, { headers, redirect: "manual" });
+      const body = await res.text();
+      const hit = markers.find((m) => m.test(body));
+      if (hit) leaks.push(`${who || "public"} ${url} (${res.status}) matched ${hit}`);
+    }
+    const project = await (await fetch(`${base}/projects/prj_01`, { headers })).text();
+    const hit = markers.find((m) => m.test(project));
+    if (hit) leaks.push(`${who || "public"} /projects/prj_01 matched ${hit}`);
+  }
+  assert.deepStrictEqual(leaks, []);
+});

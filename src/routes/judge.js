@@ -25,6 +25,8 @@ const {
   sameJudge,
 } = require("../middleware/auth");
 const { writeAudit } = require("../services/audit");
+const { isPublished } = require("../services/embargo");
+const { appendVersion, ensureBaseline, listVersions } = require("../services/review-history");
 const { renderDesk, renderDeskProject } = require("../views/judge");
 
 function registerJudge(app, db) {
@@ -79,6 +81,15 @@ function registerJudge(app, db) {
     }
     const rows = loadOwnReviews(db, req.user.id);
     res.json({ judge: { id: req.user.id, name: req.user.name }, scores: rows });
+  });
+
+  /** A judge reads the version history of their own review only. */
+  app.get("/api/judge/reviews/:id/history", requireJudge, (req, res) => {
+    const review = db.prepare(`SELECT id, judge_id FROM reviews WHERE id = ?`).get(req.params.id);
+    if (!review || review.judge_id !== req.user.id) {
+      return deny(res, 403, "peer_isolation", "A judge may only read the history of their own reviews.");
+    }
+    res.json({ reviewId: review.id, versions: listVersions(db, review.id) });
   });
 
   // Assignment queue for the Judge Desk.
@@ -175,6 +186,11 @@ function registerJudge(app, db) {
       return deny(res, 403, "not_assigned", "That project is not assigned to you.");
     }
 
+    // Once results are published a review is immutable, including creating one.
+    if (isPublished(db)) {
+      return deny(res, 409, "review_locked", "Results are published; reviews can no longer change.");
+    }
+
     const criteria = eventCriteria(db);
     const provided = req.body?.scores || {};
     const invalid = {};
@@ -216,6 +232,7 @@ function registerJudge(app, db) {
         .prepare(`SELECT * FROM reviews WHERE assignment_id = ?`)
         .get(assignment.assignmentId);
       const reviewId = existing ? existing.id : `rev_${crypto.randomUUID().slice(0, 12)}`;
+      if (existing) ensureBaseline(db, existing.id);
       if (existing) {
         db.prepare(
           `UPDATE reviews SET status=?, comment=?, submitted_at=?, updated_at=? WHERE id=?`,
@@ -250,6 +267,7 @@ function registerJudge(app, db) {
       db.prepare(
         `UPDATE assignments SET status=? WHERE id=?`,
       ).run(status === "submitted" ? "submitted" : "in_progress", assignment.assignmentId);
+      appendVersion(db, reviewId);
       return reviewId;
     });
 

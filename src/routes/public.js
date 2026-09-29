@@ -4,6 +4,8 @@
 
 const { layout, safeText } = require("../views/layout");
 const { renderGallery, renderProject } = require("../views/gallery");
+const { isPublished } = require("../services/embargo");
+const { computeResults } = require("../services/judging");
 
 function registerPublic(app, db) {
   app.get("/projects", (req, res) => {
@@ -37,6 +39,9 @@ function registerPublic(app, db) {
       )
       .all(params);
 
+    // Per-project review counts are an aggregate: embargoed until publish.
+    if (!isPublished(db)) for (const r of rows) r.review_count = null;
+
     const tracks = db.prepare(`SELECT id, name FROM tracks ORDER BY name`).all();
     const total = db.prepare(`SELECT COUNT(*) n FROM projects WHERE status='submitted'`).get().n;
 
@@ -62,7 +67,9 @@ function registerPublic(app, db) {
       .prepare(`SELECT COUNT(*) n FROM reviews WHERE project_id=? AND status='submitted'`)
       .get(row.id).n;
 
-    res.type("html").send(renderProject({ row, reviewCount, user: req.user }));
+    res.type("html").send(
+      renderProject({ row, reviewCount: isPublished(db) ? reviewCount : null, user: req.user }),
+    );
   });
 
   // Public JSON for the gallery, so an integrator can consume the same data
@@ -82,6 +89,22 @@ function registerPublic(app, db) {
       .all()
       .map((r) => ({ ...r, techTags: JSON.parse(r.techTagsJson || "[]") }));
     res.json({ projects: rows, count: rows.length });
+  });
+
+  // Public, read-only rankings. 403 for everyone (organizers use
+  // /api/organizer/calibration) until the organizer publishes. Judge
+  // statistics and per-judge detail are never part of this body.
+  app.get("/api/results", (req, res) => {
+    if (!isPublished(db)) {
+      return res.status(403).json({ error: "embargoed", message: "Results are not published yet." });
+    }
+    const r = computeResults(db);
+    const pick = (rows) =>
+      rows.map((x) => ({
+        rank: x.rank, projectId: x.projectId, title: x.title, track: x.track,
+        score: x.score, reviewCount: x.reviewCount,
+      }));
+    res.json({ raw: pick(r.raw), normalized: pick(r.normalized) });
   });
 
   function notFound(msg) {

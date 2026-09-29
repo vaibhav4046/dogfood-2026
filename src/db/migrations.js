@@ -233,6 +233,7 @@ const MIGRATIONS = [
 ];
 
 MIGRATIONS.push(...require("./migrations-auth"), ...require("./migrations-audit-chain"));
+MIGRATIONS.push(...require("./migrations-history"));
 
 function migrate(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
