@@ -32,6 +32,10 @@ const esc = (s) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+/** Hidden field for a server-rendered form; empty for a visitor with no cookie session. */
+const csrfField = (user) =>
+  user && user.csrfToken ? `<input type="hidden" name="_csrf" value="${esc(user.csrfToken)}">` : "";
+
 function layout({ title, user, body, active = "", scripts = [] }) {
   const nav = user
     ? `<nav class="nav">
@@ -51,6 +55,7 @@ function layout({ title, user, body, active = "", scripts = [] }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+${user && user.csrfToken ? `<meta name="csrf-token" content="${esc(user.csrfToken)}">` : ""}
 <title>${esc(title)} · DOGFOOD</title>
 <style>${CSS}</style>
 </head>
@@ -270,4 +275,4 @@ fieldset.scoregroup legend{padding:0;font-size:12px;color:var(--dim);margin-bott
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;
 
-module.exports = { layout, escapeHtml: esc, safeText, TOKENS, CSS };
+module.exports = { layout, csrfField, escapeHtml: esc, safeText, TOKENS, CSS };
