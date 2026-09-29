@@ -23,8 +23,9 @@ to the judge who wrote it.
 
 ## Long description (about 250 words)
 
-DOGFOOD runs a hackathon event end to end: organizers create events, tracks
-and weighted rubrics; participants form teams and submit projects; judges are
+DOGFOOD runs a hackathon event end to end: the organizer sets a weighted rubric
+and publishes results (the event itself comes from the seeded fixtures; there is no
+event-creation screen yet); participants form teams and submit projects; judges are
 invited by single-use link, see only the projects assigned to them, and score
 against the rubric; organizers watch coverage, publish results, and export CSV.
 
@@ -52,7 +53,7 @@ portal that runs with the network disconnected.
 
 ## Tech stack
 
-- Node.js 22, Express 5, `better-sqlite3` (SQLite, WAL mode)
+- Node.js 22, Express 4, `better-sqlite3` (SQLite, WAL mode)
 - Server-rendered HTML, one stylesheet, vanilla JS
 - No build step, no ORM, no hosted service, no external API, no CDN
 - `node --test` for the suite; Python for the official acceptance checker
@@ -109,6 +110,7 @@ python official/run.py .dogfood.toml
 ## Known limits, written by us
 
 - **Docker was not run locally** (no daemon on the build machine). It is proven in CI: https://github.com/vaibhav4046/dogfood-2026/actions/runs/36605284848 (compose build, unmodified checker, offline network proof).
+- **No event-creation screen, no team-invite links, no login-page role picker.** Events come from the seeded fixtures; the organizer edits the rubric and publishes over the API.
 - **T3 and T4 are not implemented.** No community voting, no discussion, no
   REST API, no webhooks, no bulk import.
 - **No Bradley-Terry pairwise mode.** Normalization is shrinkage only.
@@ -120,18 +122,17 @@ python official/run.py .dogfood.toml
   (`prj_07` / `prj_41`). It is preserved and surfaced rather than silently
   deleted, because the official fixtures ship that way. New duplicate
   submissions are refused.
-- `better-sqlite3` compiled from source on Windows/MSVC. The prebuild path was
-  never exercised.
+- `better-sqlite3` compiled from source on Windows/MSVC locally; the Linux image path is exercised by the CI run above.
 
 ## Docs to read
 
 - `README.md` — the first screen: what it is, one command, the acceptance line
 - `ARCHITECTURE.md` — dependency table and data flow
-- `DATA-MODEL.md` — schema, generated and checked against the real database
+- `DATA-MODEL.md` — every table and constraint, with the fixture data that forced it
 - `JUDGING.md` — the rubric and normalization maths, every number from the
   regenerated proof
-- `THREAT-MODEL.md` — including the header-identity backdoor and how it is
-  gated behind `DOGFOOD_MODE`
+- `THREAT-MODEL.md` — the attack list with mitigations and open items. Seeded demo
+  identities are accepted only when `DOGFOOD_MODE` is `demo` (the default)
 - `docs/OPERATIONS.md` — start, stop, back up, restore, common failures
 - `docs/WRITEUP.md` — how judging integrity is enforced, and the mistake the
   peer-score leak taught us
