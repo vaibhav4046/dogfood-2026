@@ -1,0 +1,27 @@
+✖ export neutralizes spreadsheet formulas in project titles (2.1051ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 65.7945
+
+✖ failing tests:
+
+test at tests\unit\csv-injection.test.js:7:1
+✖ export neutralizes spreadsheet formulas in project titles (2.1051ms)
+  AssertionError [ERR_ASSERTION]: formula cell was not neutralized: "=1+1"
+      at TestContext.<anonymous> (D:\project\dogfood-2026\tests\unit\csv-injection.test.js:15:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

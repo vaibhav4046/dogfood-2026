@@ -23,7 +23,10 @@ const COLUMNS = [
 
 function cell(v) {
   if (v === null || v === undefined) return "";
-  const s = String(v);
+  const raw = String(v);
+  // A CSV reader may hand this cell to a spreadsheet. Prefix formulas with
+  // an apostrophe so titles and other user text stay text when opened there.
+  const s = /^(?:[\t\r]|[\s\uFEFF]*[=+\-@])/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
