@@ -62,18 +62,13 @@ apart by two judges, closing most of that gap once normalization runs.
 We did not write our own test of whether DOGFOOD works. The organisers wrote
 `run.py` and the fixtures, and we run theirs, unmodified, against a server we
 started with one command. The current output is seven of seven PASS with the
-line `claimed T1 T2, verified T1 T2`. We claim T1 and T2 because the checker
-says T1 and T2. We do not claim T3, and we do not claim Docker.
+line `claimed T1 T2, verified T1 T2`. We claim T1 and T2 because the checker says T1 and T2. We do not claim T3.
 
-That last one is a real gap. This machine has no Docker daemon and no package
-manager to install one, so our `Dockerfile` and `docker-compose.yml` are
-reviewed but have never been executed. Every document we publish says exactly
-that, in the first screen of the README, because the alternative is a claim
-that costs the whole submission when a judge runs it and it fails.
+Docker was the gap we could not close on the machine that wrote the code, because it has no Docker daemon. We closed it in public instead: a GitHub Actions run (https://github.com/vaibhav4046/dogfood-2026/actions/runs/36605284848) builds the image with `docker compose up --build`, runs the same unmodified checker against it, and a second job boots the image on a network with no route out, checks that the gallery still serves, and requires an outbound request to fail.
 
 ## What is left
 
-The honest list: no Docker proof yet, no T3 community layer, no pairwise
+The honest list: no T3 community layer, no pairwise
 Bradley-Terry mode, no collusion detector, and CSRF protection limited to an
 Origin and Referer check with no synchronizer token. We would rather publish
 that list than a feature list, because a judge who finds an unlisted gap stops
